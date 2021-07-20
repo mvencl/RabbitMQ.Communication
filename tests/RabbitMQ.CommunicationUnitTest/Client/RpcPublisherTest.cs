@@ -8,12 +8,13 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 using Xunit;
 
 namespace RabbitMQ.Communication.Tests.Client
 {
-    public class RpcPublisherTest: IDisposable
+    public class RpcPublisherTest : IDisposable
     {
         private readonly string _rabbitHostName = "cz03app03.cz.foxconn.com"; //http://cz03app03.cz.foxconn.com:15672 - management  
         private readonly string _userName = "guest";
@@ -29,18 +30,6 @@ namespace RabbitMQ.Communication.Tests.Client
             return _chanel;
         }
 
-
-
-
-        // Otestovat paralelní běh
-        // Otestovat Cancel
-        // Otestovat jestli se čistí kolekce tasku
-
-
-
-
-
-
         [Fact]
         public async Task DirectAsync()
         {
@@ -50,33 +39,13 @@ namespace RabbitMQ.Communication.Tests.Client
 
             IModel channel = CreateChannel();
 
-            #region mock service 
-
-            
-            //create service queue
-            channel.QueueDeclare(queueName, true, false, true);
-            channel.QueueBind(queueName, "amq.direct", queueName);
-
-            //create subscriber on service queue
-            var consumer = new EventingBasicConsumer(channel);
-            channel.BasicConsume(queue: queueName, autoAck: false, consumer: consumer);
-            consumer.Received += (model, ea) =>
-            {                
-                channel.BasicAck(deliveryTag: ea.DeliveryTag, multiple: false);
-
-                BaseMessageContext request = RabbitMQExtension.DeserializeObject<BaseMessageContext>(ea.Body);
-                BaseMessageContext response = request.GenerateResponse(request.Context);
-
-                IBasicProperties props = channel.CreateBasicProperties();
-                props.CorrelationId = ea.BasicProperties.CorrelationId;
-                channel.BasicPublish(ea.BasicProperties.ReplyToAddress.ExchangeName, ea.BasicProperties.ReplyToAddress.RoutingKey, props, RabbitMQExtension.SerializeObject(response));
-            };
-            #endregion mock service  
+            RpcSubscriberTest(channel, queueName, "amq.direct");
 
             using (var publisher = new Communication.Client.RpcPublisher(channel))
             {
                 IMessageContext receivedMessage = await publisher.SendAsync(queueName, message, exchangeName: "amq.direct");
                 Assert.Equal(message.Context, receivedMessage.Context);
+                Assert.Equal(0, publisher.ActiveTasks);
             }
         }
 
@@ -89,16 +58,79 @@ namespace RabbitMQ.Communication.Tests.Client
 
             IModel channel = CreateChannel();
 
-            #region mock service 
+            RpcSubscriberTest(channel, queueName + ".#", "amq.topic");
 
-            
+            using (var publisher = new Communication.Client.RpcPublisher(channel))
+            {
+                IMessageContext receivedMessage = await publisher.SendAsync(queueName + ".a1", message, exchangeName: "amq.topic");
+                Assert.Equal(message.Context, receivedMessage.Context);
+                Assert.Equal(0, publisher.ActiveTasks);
+            }
+        }
+
+        [Fact]
+        public void TopicParallelRunAsync()
+        {
+            int iteration = 1000;
+
+            string queueName = RabbitMQExtension.CleanRoutingKey("RpcPublisherTest.TopicParallelRunAsync".ToLower().Trim());
+
+            IMessageContext message = new BaseMessageContext() { Context = "This is route" };            
+
+            IModel channel = CreateChannel();
+
+            RpcSubscriberTest(channel, queueName + ".#", "amq.topic");
+
+            using (var publisher = new Communication.Client.RpcPublisher(channel))
+            {
+                List<Task<IMessageContext>> tasks = new List<Task<IMessageContext>>();
+
+                for (int i = 0; i < iteration; i++)
+                {
+                    tasks.Add(publisher.SendAsync($"{queueName}.a{i}", message, exchangeName: "amq.topic"));
+                }
+
+                Task.WaitAll(tasks.ToArray());
+
+                Assert.Equal(iteration, tasks.Where(t => t.IsCompleted).Count());
+                Assert.Single(tasks.GroupBy(t => t.Result.Context));
+                Assert.Equal(message.Context, tasks.GroupBy(t => t.Result.Context).FirstOrDefault().Key);
+                Assert.Equal(0, publisher.ActiveTasks);
+            }
+        }
+
+        [Fact]
+        public void Cancel()
+        {
+            string queueName = RabbitMQExtension.CleanRoutingKey("RpcPublisherTest.CancelAsync".ToLower().Trim());
+
+            IMessageContext message = new BaseMessageContext() { Context = "This is it" };
+
+            IModel channel = CreateChannel();
+
+            RpcSubscriberTest(channel, queueName, "amq.direct");
+
+            using (var publisher = new Communication.Client.RpcPublisher(channel))
+            {
+                CancellationTokenSource source = new CancellationTokenSource();
+                Task<IMessageContext> receivedMessage = publisher.SendAsync(queueName, message, exchangeName: "amq.direct", ct: source.Token);
+                source.Cancel();
+                Assert.Throws<AggregateException>(() => { receivedMessage.Wait(); });                
+                Assert.True(receivedMessage.IsCanceled);
+                Assert.Equal(0, publisher.ActiveTasks);
+            }
+        }
+
+
+        private void RpcSubscriberTest(IModel channel, string queueName, string exchangeName)
+        {
             //create service queue
-            channel.QueueDeclare(queueName + ".#", true, false, true);
-            channel.QueueBind(queueName + ".#", "amq.topic", queueName + ".#");
+            channel.QueueDeclare(queueName, true, false, true);
+            channel.QueueBind(queueName, exchangeName, queueName);
 
             //create subscriber on service queue
             var consumer = new EventingBasicConsumer(channel);
-            channel.BasicConsume(queue: queueName + ".#", autoAck: false, consumer: consumer);
+            channel.BasicConsume(queue: queueName, autoAck: false, consumer: consumer);
             consumer.Received += (model, ea) =>
             {
                 channel.BasicAck(deliveryTag: ea.DeliveryTag, multiple: false);
@@ -110,59 +142,7 @@ namespace RabbitMQ.Communication.Tests.Client
                 props.CorrelationId = ea.BasicProperties.CorrelationId;
                 channel.BasicPublish(ea.BasicProperties.ReplyToAddress.ExchangeName, ea.BasicProperties.ReplyToAddress.RoutingKey, props, RabbitMQExtension.SerializeObject(response));
             };
-            #endregion mock service  
 
-            using (var publisher = new Communication.Client.RpcPublisher(channel))
-            {
-                IMessageContext receivedMessage = await publisher.SendAsync(queueName + ".a1", message, exchangeName: "amq.topic");
-                Assert.Equal(message.Context, receivedMessage.Context);
-            }
-        }
-
-        [Fact]
-        public void TopicParallelRunAsync()
-        {
-            string queueName = RabbitMQExtension.CleanRoutingKey("RpcPublisherTest.TopicParallelRunAsync".ToLower().Trim());
-
-            IMessageContext message = new BaseMessageContext() { Context = "This is route" };
-
-            IModel channel = CreateChannel();
-
-            #region mock service 
-
-            
-            //create service queue
-            channel.QueueDeclare(queueName + ".#", true, false, true);
-            channel.QueueBind(queueName + ".#", "amq.topic", queueName + ".#");
-
-            //create subscriber on service queue
-            var consumer = new EventingBasicConsumer(channel);
-            channel.BasicConsume(queue: queueName + ".#", autoAck: false, consumer: consumer);
-            consumer.Received += Consumer_Received;
-            #endregion mock service  
-
-            using (var publisher = new Communication.Client.RpcPublisher(channel))
-            {
-                Task<IMessageContext> task1 = publisher.SendAsync(queueName + ".a1", message, exchangeName: "amq.topic");
-                Task<IMessageContext> task2 = publisher.SendAsync(queueName + ".a2", message, exchangeName: "amq.topic");
-
-                Task.WaitAll(task1, task2);
-
-                Assert.Equal(message.Context + ".a1", task1.Result.Context);
-                Assert.Equal(message.Context + ".a2", task2.Result.Context);
-            }
-        }
-
-        private void Consumer_Received(object channel, BasicDeliverEventArgs e)
-        {
-            ((IModel)channel).BasicAck(deliveryTag: e.DeliveryTag, multiple: false);
-
-            BaseMessageContext request = RabbitMQExtension.DeserializeObject<BaseMessageContext>(e.Body);
-            BaseMessageContext response = request.GenerateResponse(request.Context + e.RoutingKey.Substring(e.RoutingKey.LastIndexOf('.')));
-
-            IBasicProperties props = ((IModel)channel).CreateBasicProperties();
-            props.CorrelationId = e.BasicProperties.CorrelationId;
-            ((IModel)channel).BasicPublish(e.BasicProperties.ReplyToAddress.ExchangeName, e.BasicProperties.ReplyToAddress.RoutingKey, props, RabbitMQExtension.SerializeObject(response));
         }
        
         public void Dispose()

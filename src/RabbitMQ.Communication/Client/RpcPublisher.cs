@@ -37,7 +37,11 @@ namespace RabbitMQ.Communication.Client
                     // TODO: dispose managed state (managed objects)
                     if (DisposeChannel) Channel.Dispose();
                 }
-                // TODO: free unmanaged resources (unmanaged objects) and override finalizer
+                // TODO: free unmanaged resources (unmanaged objects) and override finalizer                
+                foreach(TaskCompletionSource<BaseMessageContext> t in callbackMapper.Values)
+                {
+                    t.TrySetCanceled();
+                }                
                 callbackMapper.Clear();
 
                 // TODO: set large fields to null                
@@ -137,7 +141,8 @@ namespace RabbitMQ.Communication.Client
 
                 await Publisher.SendAsync(routingKey, message, exchangeName, correlationId, replyTo, ct);
 
-                return await tcs.Task;
+                return await tcs.Task;                
+
             }
             catch
             {
@@ -152,10 +157,15 @@ namespace RabbitMQ.Communication.Client
         /// </summary>
         /// <param name="timeoutSec"></param>
         /// <returns></returns>
-        private int TimeoutMs(int timeoutSec)
+        private static int TimeoutMs(int timeoutSec)
         {
             int timeOutMs = timeoutSec * 1000; //nastaveny timeout
             return timeOutMs > 0 && timeOutMs < MAX_TIMEOUT_MS ? timeOutMs : MAX_TIMEOUT_MS;
+        }
+
+        public int ActiveTasks
+        {
+            get { return callbackMapper.Count; }
         }
 
     }
