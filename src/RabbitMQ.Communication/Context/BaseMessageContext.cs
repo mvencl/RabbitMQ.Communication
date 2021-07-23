@@ -1,9 +1,9 @@
-﻿using RabbitMQ.Communication.Contracts;
+﻿using Newtonsoft.Json;
+using RabbitMQ.Communication.Contracts;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
-using System.Text.Json;
 using System.Threading.Tasks;
 
 namespace RabbitMQ.Communication.Context
@@ -16,12 +16,12 @@ namespace RabbitMQ.Communication.Context
 
         public T GetContext<T>()
         {
-            return JsonSerializer.Deserialize<T>(Context);
+            return JsonConvert.DeserializeObject<T>(Context);
         }
 
         public void SetContext<T>(T context)
         {
-            Context = JsonSerializer.Serialize(context);
+            Context = JsonConvert.SerializeObject(context);
         }
 
         public virtual BaseResponseMessageContext GenerateResponse(string context = null)

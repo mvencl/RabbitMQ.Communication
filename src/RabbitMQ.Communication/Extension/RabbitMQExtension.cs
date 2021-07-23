@@ -7,9 +7,9 @@ using System.Linq;
 using System.Runtime.Serialization.Formatters.Binary;
 using System.Text;
 using System.Threading.Tasks;
-using System.Text.Json;
 using RabbitMQ.Client;
 using Microsoft.Toolkit.HighPerformance;
+using Newtonsoft.Json;
 
 namespace RabbitMQ.Communication.Extension
 {
@@ -18,8 +18,7 @@ namespace RabbitMQ.Communication.Extension
         public static string CleanRoutingKey(string routingKey)
         {
             routingKey = routingKey.Replace('/', '.');
-            if (routingKey.StartsWith("."))
-                routingKey = routingKey[1..];
+            if (routingKey.StartsWith(".")) routingKey = routingKey.Substring(1);
             return routingKey.ToLower().Trim();
         }
 
@@ -69,7 +68,7 @@ namespace RabbitMQ.Communication.Extension
 
             if (compress)
             {
-                using var uncompressedStream = new MemoryStream(Encoding.UTF8.GetBytes(JsonSerializer.Serialize(request)));
+                using var uncompressedStream = new MemoryStream(Encoding.UTF8.GetBytes(JsonConvert.SerializeObject(request)));
                 using var compressedStream = new MemoryStream();
                 using (DeflateStream compressorStream = new DeflateStream(compressedStream, CompressionLevel.Fastest, true))
                 {
@@ -79,7 +78,7 @@ namespace RabbitMQ.Communication.Extension
             }
             else
             {
-                compressedBytes = Encoding.UTF8.GetBytes(JsonSerializer.Serialize(request));
+                compressedBytes = Encoding.UTF8.GetBytes(JsonConvert.SerializeObject(request));
             }
 
             return compressedBytes;
@@ -96,12 +95,12 @@ namespace RabbitMQ.Communication.Extension
                     {
                         compressorStream.CopyTo(uncompressedStream);
                     }
-                    return JsonSerializer.Deserialize<T>(Encoding.UTF8.GetString(uncompressedStream.ToArray()));
+                    return JsonConvert.DeserializeObject<T>(Encoding.UTF8.GetString(uncompressedStream.ToArray()));
                 }
             }
             else
             {
-                return JsonSerializer.Deserialize<T>(Encoding.UTF8.GetString(response.Span));
+                return JsonConvert.DeserializeObject<T>(Encoding.UTF8.GetString(response.Span.ToArray()));
             }
         }    
 
