@@ -84,7 +84,7 @@ namespace RabbitMQ.Communication.Client
                 throw new ArgumentNullException(nameof(message));
 
             routingKey = RabbitMQExtension.CleanRoutingKey(routingKey);
-            correlationId ??= RabbitMQExtension.GetCorrelationId();
+            correlationId = correlationId ?? RabbitMQExtension.GetCorrelationId();
 
             IBasicProperties props = Channel.CreateBasicProperties();
             props.CorrelationId = correlationId;

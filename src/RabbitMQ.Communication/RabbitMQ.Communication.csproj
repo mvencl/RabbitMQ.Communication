@@ -1,17 +1,17 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
+    <LangVersion>7.1</LangVersion>
     <TargetFramework>netstandard2.0</TargetFramework>
-    <LangVersion>8.0</LangVersion>
     <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
     <RepositoryType>git</RepositoryType>
     <RepositoryUrl>https://github.com/mvencl/RabbitMQ.Communication</RepositoryUrl>
-    <PackageTags>rabbitmq rpc</PackageTags>
+    <PackageTags>rabbitmq rpc microservices</PackageTags>
     <PackageProjectUrl>https://github.com/mvencl/RabbitMQ.Communication</PackageProjectUrl>
     <Description>Simple library for communication and RPC communication between services using RabbitMQ as a message queueing.</Description>
   </PropertyGroup>
 
-  <ItemGroup>
+  <ItemGroup>    
     <PackageReference Include="Microsoft.Toolkit.HighPerformance" Version="7.0.2" />
     <PackageReference Include="Newtonsoft.Json" Version="13.0.1" />
     <PackageReference Include="RabbitMQ.Client" Version="6.2.2" />

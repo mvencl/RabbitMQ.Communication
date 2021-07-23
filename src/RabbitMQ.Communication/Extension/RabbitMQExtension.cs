@@ -68,13 +68,19 @@ namespace RabbitMQ.Communication.Extension
 
             if (compress)
             {
-                using var uncompressedStream = new MemoryStream(Encoding.UTF8.GetBytes(JsonConvert.SerializeObject(request)));
-                using var compressedStream = new MemoryStream();
-                using (DeflateStream compressorStream = new DeflateStream(compressedStream, CompressionLevel.Fastest, true))
+                using (var uncompressedStream = new MemoryStream(Encoding.UTF8.GetBytes(JsonConvert.SerializeObject(request))))
                 {
-                    uncompressedStream.CopyTo(compressorStream);
+                    using (var compressedStream = new MemoryStream())
+                    {
+                        using (DeflateStream compressorStream = new DeflateStream(compressedStream, CompressionLevel.Fastest, true))
+                        {
+                            uncompressedStream.CopyTo(compressorStream);
+                        }
+                        compressedBytes = compressedStream.ToArray();
+                    }
+
                 }
-                compressedBytes = compressedStream.ToArray();
+
             }
             else
             {
@@ -89,7 +95,7 @@ namespace RabbitMQ.Communication.Extension
         {
             if (isCompressed)
             {
-                using var uncompressedStream = new MemoryStream();
+                using (var uncompressedStream = new MemoryStream())
                 {
                     using (DeflateStream compressorStream = new DeflateStream(response.AsStream(), CompressionMode.Decompress, true))
                     {
