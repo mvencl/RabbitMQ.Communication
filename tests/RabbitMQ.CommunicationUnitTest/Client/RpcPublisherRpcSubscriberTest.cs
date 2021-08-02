@@ -5,6 +5,7 @@ using RabbitMQ.Communication.Contracts;
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.ComponentModel.DataAnnotations;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -37,7 +38,7 @@ namespace RabbitMQ.Communication.Tests.Client
 
             Func<IMessageContext, BasicDeliverEventArgs, Task<string>> func = async (IMessageContext message1, BasicDeliverEventArgs ea) => await Task.FromResult(message1.Context);
 
-            using (var subscriber = new Communication.Client.RpcSubscriber(channel, methodname + ".a1", func, "amq.direct"))
+            using (var subscriber = new Communication.Client.RpcSubscriber<BaseMessageContext>(channel, methodname + ".a1", func, "amq.direct"))
             {
                 using (var publisher = new Communication.Client.RpcPublisher(channel))
                 {
@@ -56,7 +57,7 @@ namespace RabbitMQ.Communication.Tests.Client
 
             Func<IMessageContext, BasicDeliverEventArgs, Task<string>> func = async (IMessageContext message1, BasicDeliverEventArgs ea) => await Task.FromResult(message1.Context);
 
-            using (var subscriber = new Communication.Client.RpcSubscriber(channel, methodname + ".#", func, "amq.topic"))
+            using (var subscriber = new Communication.Client.RpcSubscriber<BaseMessageContext>(channel, methodname + ".#", func, "amq.topic"))
             {
                 using (var publisher = new Communication.Client.RpcPublisher(channel))
                 {
@@ -64,6 +65,48 @@ namespace RabbitMQ.Communication.Tests.Client
                     Assert.Equal(message.Context, receivedMessage);
                 }
             }
+        }
+
+        [Fact]
+        public async Task ExceptionAsync()
+        {
+            string methodname = "RpcPublisherRpcSubscriberTest.ExceptionAsync";
+            IModel channel = CreateChannel();
+            IMessageContext message = new BaseMessageContext() { Context = "This is it" };
+
+            Func<IMessageContext, BasicDeliverEventArgs, Task<string>> func = (IMessageContext message1, BasicDeliverEventArgs ea) => throw new Exception("Error");
+
+            using (var subscriber = new Communication.Client.RpcSubscriber<BaseMessageContext>(channel, methodname + ".#", func, "amq.topic"))
+            {
+                using (var publisher = new Communication.Client.RpcPublisher(channel))
+                {                    
+                    BaseResponseMessageContext receivedMessage = (await publisher.SendAsync(methodname + ".a1", message, exchangeName: "amq.topic"));
+                    Assert.True(receivedMessage.IsError);
+                }
+            }
+        }
+
+        [Fact]
+        public async Task ExceptionTypeAsync()
+        {
+            string methodname = "RpcPublisherRpcSubscriberTest.ExceptionAsync";
+            IModel channel = CreateChannel();
+            IMessageContext message = new BaseMessageContext() { Context = "This is it" };
+
+            Func<IMessageContext, BasicDeliverEventArgs, Task<string>> func = (IMessageContext message1, BasicDeliverEventArgs ea) => throw new ValidationException("Validation");
+
+            using (var subscriber = new Communication.Client.RpcSubscriber<BaseMessageContext>(channel, methodname + ".#", func, "amq.topic"))
+            {
+                using (var publisher = new Communication.Client.RpcPublisher(channel))
+                {
+                    BaseResponseMessageContext receivedMessage = await publisher.SendAsync(methodname + ".a1", message, exchangeName: "amq.topic");
+                    Assert.Throws<ValidationException>(() => MethodThatThrows(receivedMessage));
+                }
+            }
+        }
+        void MethodThatThrows(BaseResponseMessageContext message)
+        {
+            throw message.Exception;
         }
     }
 }

@@ -38,7 +38,7 @@ namespace RabbitMQ.Communication.Client
                     if (DisposeChannel) Channel.Dispose();
                 }
                 // TODO: free unmanaged resources (unmanaged objects) and override finalizer                
-                foreach(TaskCompletionSource<BaseMessageContext> t in callbackMapper.Values)
+                foreach(TaskCompletionSource<BaseResponseMessageContext> t in callbackMapper.Values)
                 {
                     t.TrySetCanceled();
                 }                
@@ -65,13 +65,13 @@ namespace RabbitMQ.Communication.Client
         }
         #endregion Dispose
                 
-        internal Subscriber<BaseMessageContext> Subscriber { get; }
+        internal Subscriber<BaseResponseMessageContext> Subscriber { get; }
         internal Publisher Publisher { get; }
         internal IModel Channel { get; }
         private bool DisposeChannel { get; } = false;
 
-        private readonly ConcurrentDictionary<string, TaskCompletionSource<BaseMessageContext>> callbackMapper =
-                new ConcurrentDictionary<string, TaskCompletionSource<BaseMessageContext>>();
+        private readonly ConcurrentDictionary<string, TaskCompletionSource<BaseResponseMessageContext>> callbackMapper =
+                new ConcurrentDictionary<string, TaskCompletionSource<BaseResponseMessageContext>>();
 
         /// <summary>
         /// Constructor
@@ -91,12 +91,12 @@ namespace RabbitMQ.Communication.Client
         {
             Channel = channel;
             Publisher = new Publisher(channel);
-            Subscriber = new Subscriber<BaseMessageContext>(channel, RabbitMQExtension.GetDefaultSubscriberRoutingKey, ConsumerFunction, subscriberExchangeName ?? RabbitMQExtension.GetDefaultSubscriberExchangeName);
+            Subscriber = new Subscriber<BaseResponseMessageContext>(channel, RabbitMQExtension.GetDefaultSubscriberRoutingKey, ConsumerFunction, subscriberExchangeName ?? RabbitMQExtension.GetDefaultSubscriberExchangeName);
         }
 
-        private async Task ConsumerFunction(BaseMessageContext message, BasicDeliverEventArgs ea)
+        private async Task ConsumerFunction(BaseResponseMessageContext message, BasicDeliverEventArgs ea)
         {
-            if (!callbackMapper.TryRemove(ea.BasicProperties.CorrelationId, out TaskCompletionSource<BaseMessageContext> tcs))
+            if (!callbackMapper.TryRemove(ea.BasicProperties.CorrelationId, out TaskCompletionSource<BaseResponseMessageContext> tcs))
                 return;
             await Task.Run(() => tcs.TrySetResult(message));
         }
@@ -108,7 +108,7 @@ namespace RabbitMQ.Communication.Client
         /// <param name="requestRoutingKey">Routing key to use for sending the message. For separation, it must contain dots no slashes.</param>
         /// <param name="message">Message to be sent.</param>
         /// <param name="publisherExchangeName">If not set, the value from the PublisherExchangeNameConfig property is used.</param>
-        public async Task<IMessageContext> SendAsync(string routingKey, IMessageContext message, int timeoutSec = 0, string exchangeName = "amq.topic", CancellationToken ct = default)
+        public async Task<BaseResponseMessageContext> SendAsync(string routingKey, IMessageContext message, int timeoutSec = 0, string exchangeName = "amq.topic", CancellationToken ct = default)
         {
             string correlationId = RabbitMQExtension.GetCorrelationId();
 
@@ -116,7 +116,7 @@ namespace RabbitMQ.Communication.Client
             {
                 message.CorrelationID = correlationId;
 
-                TaskCompletionSource<BaseMessageContext> tcs = new TaskCompletionSource<BaseMessageContext>(TaskCreationOptions.RunContinuationsAsynchronously);
+                TaskCompletionSource<BaseResponseMessageContext> tcs = new TaskCompletionSource<BaseResponseMessageContext>(TaskCreationOptions.RunContinuationsAsynchronously);
                 callbackMapper.TryAdd(correlationId, tcs);
 
                 //setting max timeout

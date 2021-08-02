@@ -83,7 +83,7 @@ namespace RabbitMQ.Communication.Tests.Client
 
             using (var publisher = new Communication.Client.RpcPublisher(channel))
             {
-                List<Task<IMessageContext>> tasks = new List<Task<IMessageContext>>();
+                List<Task<BaseResponseMessageContext>> tasks = new List<Task<BaseResponseMessageContext>>();
 
                 for (int i = 0; i < iteration; i++)
                 {
@@ -113,7 +113,7 @@ namespace RabbitMQ.Communication.Tests.Client
             using (var publisher = new Communication.Client.RpcPublisher(channel))
             {
                 CancellationTokenSource source = new CancellationTokenSource();
-                Task<IMessageContext> receivedMessage = publisher.SendAsync(queueName, message, exchangeName: "amq.direct", ct: source.Token);
+                Task<BaseResponseMessageContext> receivedMessage = publisher.SendAsync(queueName, message, exchangeName: "amq.direct", ct: source.Token);
                 source.Cancel();
                 Assert.Throws<AggregateException>(() => { receivedMessage.Wait(); });                
                 Assert.True(receivedMessage.IsCanceled);

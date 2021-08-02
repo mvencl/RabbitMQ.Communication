@@ -11,7 +11,7 @@ using System.Threading.Tasks;
 
 namespace RabbitMQ.Communication.Client
 {
-    public class RpcSubscriber : IDisposable
+    public class RpcSubscriber<T> : IDisposable where T: BaseMessageContext
     {
         #region Dispose
         private bool disposedValue;
@@ -49,8 +49,8 @@ namespace RabbitMQ.Communication.Client
         }
         #endregion Dispose
 
-        internal Func<BaseMessageContext, BasicDeliverEventArgs, Task<string>> ConsumerFunction { get; }
-        internal Subscriber<BaseMessageContext> Subscriber { get; }
+        internal Func<T, BasicDeliverEventArgs, Task<string>> ConsumerFunction { get; }
+        internal Subscriber<T> Subscriber { get; }
         internal Publisher Publisher { get; }
         internal IModel Channel { get; }
         private bool DisposeChannel { get; } = false;
@@ -59,7 +59,7 @@ namespace RabbitMQ.Communication.Client
         /// Constructor
         /// </summary>
         /// <param name="connection">Connection</param>
-        public RpcSubscriber(IConnection connection, string routingKey, Func<BaseMessageContext, BasicDeliverEventArgs, Task<string>> consumerFunction, string subscriberExchangeName = "amq.direct") : this(connection.CreateModel(), routingKey, consumerFunction, subscriberExchangeName)
+        public RpcSubscriber(IConnection connection, string routingKey, Func<T, BasicDeliverEventArgs, Task<string>> consumerFunction, string subscriberExchangeName = "amq.topic") : this(connection.CreateModel(), routingKey, consumerFunction, subscriberExchangeName)
         {
             // Channel is created in this class please dispose this channel
             DisposeChannel = true;
@@ -69,15 +69,15 @@ namespace RabbitMQ.Communication.Client
         /// Constructor
         /// </summary>
         /// <param name="channel">Channel</param>
-        public RpcSubscriber(IModel channel, string routingKey, Func<BaseMessageContext, BasicDeliverEventArgs, Task<string>> consumerFunction, string subscriberExchangeName = "amq.direct")
+        public RpcSubscriber(IModel channel, string routingKey, Func<T, BasicDeliverEventArgs, Task<string>> consumerFunction, string subscriberExchangeName = "amq.topic")
         {
             Channel = channel;
             Publisher = new Publisher(channel);
-            Subscriber = new Subscriber<BaseMessageContext>(channel, routingKey, SubscriberFunction, subscriberExchangeName ?? RabbitMQExtension.GetDefaultSubscriberExchangeName);
+            Subscriber = new Subscriber<T>(channel, routingKey, SubscriberFunction, subscriberExchangeName ?? RabbitMQExtension.GetDefaultSubscriberExchangeName);
             ConsumerFunction = consumerFunction;
         }
 
-        private async Task SubscriberFunction(BaseMessageContext message, BasicDeliverEventArgs ea)
+        private async Task SubscriberFunction(T message, BasicDeliverEventArgs ea)
         {
             if (ea.BasicProperties.ReplyToAddress == null)
                 throw new ArgumentNullException(nameof(ea.BasicProperties.ReplyToAddress));

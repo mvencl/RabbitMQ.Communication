@@ -37,7 +37,7 @@ namespace RabbitMQ.Communication.Tests.Client
             IModel channel = CreateChannel();
 
             Func<BaseMessageContext, BasicDeliverEventArgs, Task<string>> func = async (BaseMessageContext message1, BasicDeliverEventArgs ea) => await Task.FromResult(message1.Context);
-            RpcSubscriber subscriber = new RpcSubscriber(channel, queueName, func);
+            RpcSubscriber<BaseMessageContext> subscriber = new RpcSubscriber<BaseMessageContext>(channel, queueName, func);
 
             BlockingCollection<string> respQueue = new BlockingCollection<string>();
             string responseQueueName = "response." + queueName;
@@ -57,7 +57,7 @@ namespace RabbitMQ.Communication.Tests.Client
             IModel channel = CreateChannel();
 
             Func<BaseMessageContext, BasicDeliverEventArgs, Task<string>> func = async (BaseMessageContext message1, BasicDeliverEventArgs ea) => await Task.FromResult(message1.Context);
-            RpcSubscriber subscriber = new RpcSubscriber(channel, queueName + ".#", func, "amq.topic");
+            RpcSubscriber<BaseMessageContext> subscriber = new RpcSubscriber<BaseMessageContext>(channel, queueName + ".#", func, "amq.topic");
 
             BlockingCollection<string> respQueue = new BlockingCollection<string>();
             string responseQueueName = "response." + queueName;
