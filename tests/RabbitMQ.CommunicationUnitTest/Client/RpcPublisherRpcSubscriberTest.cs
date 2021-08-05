@@ -107,6 +107,6 @@ namespace RabbitMQ.Communication.Tests.Client
         void MethodThatThrows(BaseResponseMessageContext message)
         {
             throw message.Exception;
-        }
+        }                
     }
 }

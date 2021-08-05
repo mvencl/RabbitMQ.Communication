@@ -68,7 +68,7 @@ namespace RabbitMQ.Communication.Extension
 
             if (compress)
             {
-                using (var uncompressedStream = new MemoryStream(Encoding.UTF8.GetBytes(JsonConvert.SerializeObject(request, new JsonSerializerSettings { TypeNameHandling = TypeNameHandling.All }))))
+                using (var uncompressedStream = new MemoryStream(Encoding.UTF8.GetBytes(JsonConvert.SerializeObject(request))))
                 {
                     using (var compressedStream = new MemoryStream())
                     {
@@ -84,7 +84,7 @@ namespace RabbitMQ.Communication.Extension
             }
             else
             {
-                compressedBytes = Encoding.UTF8.GetBytes(JsonConvert.SerializeObject(request, new JsonSerializerSettings { TypeNameHandling = TypeNameHandling.All }));
+                compressedBytes = Encoding.UTF8.GetBytes(JsonConvert.SerializeObject(request));
             }
 
             return compressedBytes;
@@ -101,12 +101,12 @@ namespace RabbitMQ.Communication.Extension
                     {
                         compressorStream.CopyTo(uncompressedStream);
                     }
-                    return JsonConvert.DeserializeObject<T>(Encoding.UTF8.GetString(uncompressedStream.ToArray()), new JsonSerializerSettings { TypeNameHandling = TypeNameHandling.All });
+                    return JsonConvert.DeserializeObject<T>(Encoding.UTF8.GetString(uncompressedStream.ToArray()));
                 }
             }
             else
             {
-                return JsonConvert.DeserializeObject<T>(Encoding.UTF8.GetString(response.Span.ToArray()), new JsonSerializerSettings { TypeNameHandling = TypeNameHandling.All });
+                return JsonConvert.DeserializeObject<T>(Encoding.UTF8.GetString(response.Span.ToArray()));
             }
         }    
 
