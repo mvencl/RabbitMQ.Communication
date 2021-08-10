@@ -7,6 +7,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
+using System.Threading.Channels;
 using System.Threading.Tasks;
 
 namespace RabbitMQ.Communication.Client
@@ -59,7 +60,7 @@ namespace RabbitMQ.Communication.Client
         /// Constructor
         /// </summary>
         /// <param name="connection">Connection</param>
-        public RpcSubscriber(IConnection connection, string routingKey, Func<T, BasicDeliverEventArgs, Task<string>> consumerFunction, string subscriberExchangeName = "amq.topic") : this(connection.CreateModel(), routingKey, consumerFunction, subscriberExchangeName)
+        public RpcSubscriber(IConnection connection, string routingKey, Func<T, BasicDeliverEventArgs, Task<string>> consumerFunction, string subscriberExchangeName = "amq.topic", ushort? prefetchCount = null) : this(connection.CreateModel(), routingKey, consumerFunction, subscriberExchangeName, prefetchCount)
         {
             // Channel is created in this class please dispose this channel
             DisposeChannel = true;
@@ -69,11 +70,12 @@ namespace RabbitMQ.Communication.Client
         /// Constructor
         /// </summary>
         /// <param name="channel">Channel</param>
-        public RpcSubscriber(IModel channel, string routingKey, Func<T, BasicDeliverEventArgs, Task<string>> consumerFunction, string subscriberExchangeName = "amq.topic")
-        {
+        public RpcSubscriber(IModel channel, string routingKey, Func<T, BasicDeliverEventArgs, Task<string>> consumerFunction, string subscriberExchangeName = "amq.topic", ushort? prefetchCount = null)
+        {            
             Channel = channel;
+
             Publisher = new Publisher(channel);
-            Subscriber = new Subscriber<T>(channel, routingKey, SubscriberFunction, subscriberExchangeName ?? RabbitMQExtension.GetDefaultSubscriberExchangeName);
+            Subscriber = new Subscriber<T>(channel, routingKey, SubscriberFunction, subscriberExchangeName ?? RabbitMQExtension.GetDefaultSubscriberExchangeName, prefetchCount);
             ConsumerFunction = consumerFunction;
         }
 

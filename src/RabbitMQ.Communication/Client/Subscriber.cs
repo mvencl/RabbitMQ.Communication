@@ -60,21 +60,23 @@ namespace RabbitMQ.Communication.Client
         /// <summary>
         /// Channel
         /// </summary>
-        internal IModel Channel { get; }        
+        internal IModel Channel { get; }
 
-        public Subscriber(IConnection connection, string routingKey, Func<T, BasicDeliverEventArgs, Task> consumerFunction, string subscriberExchangeName = "amq.topic", ushort consumerLimitCount = 1000)
-            : this(connection.CreateModel(), routingKey, consumerFunction, subscriberExchangeName)
+        public Subscriber(IConnection connection, string routingKey, Func<T, BasicDeliverEventArgs, Task> consumerFunction, string subscriberExchangeName = "amq.topic", ushort? prefetchCount = null)
+            : this(connection.CreateModel(), routingKey, consumerFunction, subscriberExchangeName, prefetchCount)
         {
-            DisposeChannel = true;
-            Channel.BasicQos(0, consumerLimitCount, false);
+            DisposeChannel = true; 
         }
-        public Subscriber(IModel channel, string routingKey, Func<T, BasicDeliverEventArgs, Task> consumerFunction, string subscriberExchangeName = "amq.topic")
+        public Subscriber(IModel channel, string routingKey, Func<T, BasicDeliverEventArgs, Task> consumerFunction, string subscriberExchangeName = "amq.topic", ushort? prefetchCount = null)
         {
             ExchangeName = subscriberExchangeName;
             RoutingKey = RabbitMQExtension.CleanRoutingKey(routingKey);
             string queueName = RoutingKey;
             Channel = channel;
             
+            if (prefetchCount != null)
+                Channel.BasicQos(0, prefetchCount.Value, false);
+
             Channel.ExchangeDeclare(RabbitMQExtension.GetDefaultExchangeName, "topic", true, true);
             Channel.CreateQueue(queueName); 
             Channel.ExchangeBind(RabbitMQExtension.GetDefaultExchangeName, ExchangeName, RoutingKey);
@@ -82,10 +84,13 @@ namespace RabbitMQ.Communication.Client
 
             EventingBasicConsumer consumer = new EventingBasicConsumer(Channel);
 
+            if (Channel.DefaultConsumer == null)
+                Channel.DefaultConsumer = consumer;
+
             consumer.Received += async (object sender, BasicDeliverEventArgs ea) =>
-            {
-                Channel.BasicAck(deliveryTag: ea.DeliveryTag, multiple: false);
+            {                
                 await consumerFunction(RabbitMQExtension.DeserializeObject<T>(ea.Body.Span.ToArray()), ea);
+                Channel.BasicAck(deliveryTag: ea.DeliveryTag, multiple: false);
             };
             Channel.BasicConsume(queueName, false, consumer);
         }         

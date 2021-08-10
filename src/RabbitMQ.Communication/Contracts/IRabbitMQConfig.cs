@@ -11,6 +11,5 @@ namespace RabbitMQ.Communication.Contracts
         string UserName { get; set; }
         string Password { get; set; }
         string VirtualHost { get; set; }
-
     }
 }
