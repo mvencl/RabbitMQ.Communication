@@ -98,6 +98,10 @@ namespace RabbitMQ.Communication.Client
         {
             if (!callbackMapper.TryRemove(ea.BasicProperties.CorrelationId, out TaskCompletionSource<BaseResponseMessageContext> tcs))
                 return;
+
+            if (message.IsError)
+                tcs.SetException(message.Exception);
+
             await Task.Run(() => tcs.TrySetResult(message));
         }
             

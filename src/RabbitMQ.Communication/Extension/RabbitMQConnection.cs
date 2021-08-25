@@ -1,19 +1,26 @@
 ﻿using RabbitMQ.Client;
 using RabbitMQ.Communication.Contracts;
 using System;
+using static System.Net.Mime.MediaTypeNames;
 
 namespace RabbitMQ.Communication.Extension
 {
     public static class RabbitMQConnection
     {
-        public static IConnection CreateConnection(IRabbitMQConfig config)
+        /// <summary>
+        /// Create RabbitMQ connection
+        /// </summary>
+        /// <param name="config"></param>
+        /// <param name="additionalTextConnectionName">Additional text for name of connection. Will be added front of class name.</param>
+        /// <returns></returns>
+        public static IConnection CreateConnection(IRabbitMQConfig config, string additionalTextConnectionName = null)
         {
             try
             {
                 var factory = new RabbitMQ.Client.ConnectionFactory() { HostName = config.HostName, UserName = config.UserName, Password = config.Password };
                 factory.Port = config.Port ?? factory.Port;
                 factory.VirtualHost = config.VirtualHost ?? factory.VirtualHost;
-                return factory.CreateConnection(GetConnectionName());
+                return factory.CreateConnection(GetConnectionName(additionalTextConnectionName));
             }
             catch(Exception ex)
             {
@@ -25,9 +32,10 @@ namespace RabbitMQ.Communication.Extension
         /// Connection name
         /// </summary>
         /// <returns></returns>
-        private static string GetConnectionName()
+        private static string GetConnectionName(string additionalText = null)
         {
-            return System.Reflection.Assembly.GetEntryAssembly()?.GetName()?.Name;
+            additionalText = additionalText ?? string.Empty;
+            return additionalText + System.Reflection.Assembly.GetEntryAssembly()?.GetName()?.Name;
         }
     }
 
