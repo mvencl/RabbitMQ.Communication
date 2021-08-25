@@ -27,14 +27,6 @@ namespace RabbitMQ.Communication.Extension
             return Guid.NewGuid().ToString();
         }
 
-        public static string GetDefaultExchangeName
-        {
-            get
-            {
-                return System.Reflection.Assembly.GetEntryAssembly()?.GetName()?.Name;
-            }
-        }
-
         public static string GetDefaultSubscriberRoutingKey
         {
             get

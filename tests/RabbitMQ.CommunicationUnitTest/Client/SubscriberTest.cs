@@ -18,12 +18,10 @@ namespace RabbitMQ.Communication.Tests.Client
         private readonly string _rabbitHostName = "cz03app03.cz.foxconn.com"; //http://cz03app03.cz.foxconn.com:15672 - management  
         private readonly string _userName = "guest";
         private readonly string _password = "guest";
-        private readonly string _virtualHost = "test";
-
 
         private IModel CreateChannel()
         {
-            return new RabbitMQ.Client.ConnectionFactory() { HostName = _rabbitHostName, UserName = _userName, Password = _password, VirtualHost = _virtualHost }.CreateConnection().CreateModel();
+            return new RabbitMQ.Client.ConnectionFactory() { HostName = _rabbitHostName, UserName = _userName, Password = _password}.CreateConnection().CreateModel();
         }
 
         [Fact]

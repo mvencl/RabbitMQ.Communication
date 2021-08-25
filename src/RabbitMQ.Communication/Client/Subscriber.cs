@@ -77,10 +77,8 @@ namespace RabbitMQ.Communication.Client
             if (prefetchCount != null)
                 Channel.BasicQos(0, prefetchCount.Value, false);
 
-            Channel.ExchangeDeclare(RabbitMQExtension.GetDefaultExchangeName, "topic", true, true);
             Channel.CreateQueue(queueName); 
-            Channel.ExchangeBind(RabbitMQExtension.GetDefaultExchangeName, ExchangeName, RoutingKey);
-            Channel.QueueBind(queueName, RabbitMQExtension.GetDefaultExchangeName, RoutingKey);
+            Channel.QueueBind(queueName, ExchangeName, RoutingKey);
 
             EventingBasicConsumer consumer = new EventingBasicConsumer(Channel);
 
