@@ -15,7 +15,7 @@ namespace RabbitMQ.Communication.Tests.Client
 {
     public class RpcPublisherRpcSubscriberTest
     {
-        private readonly string _rabbitHostName = "cz03app03.cz.foxconn.com"; //http://cz03app03.cz.foxconn.com:15672 - management  
+        private readonly string _rabbitHostName = "localhost";
         private readonly string _userName = "guest";
         private readonly string _password = "guest";
 
