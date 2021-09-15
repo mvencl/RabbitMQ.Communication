@@ -1,7 +1,10 @@
 ﻿using RabbitMQ.Client;
+using RabbitMQ.Client.Events;
+using RabbitMQ.Communication.Context;
 using RabbitMQ.Communication.Contracts;
 using RabbitMQ.Communication.Extension;
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -18,7 +21,7 @@ namespace RabbitMQ.Communication.Client
         protected virtual void Dispose(bool disposing)
         {
             if (!disposedValue)
-            {
+            {                
                 if (disposing)
                 {
                     // TODO: dispose managed state (managed objects)
@@ -65,7 +68,7 @@ namespace RabbitMQ.Communication.Client
         /// <param name="channel">Channel</param>
         public Publisher(IModel channel)
         {
-            Channel = channel;
+            Channel = channel;            
         }
 
         /// <summary>
@@ -74,7 +77,7 @@ namespace RabbitMQ.Communication.Client
         /// <param name="requestRoutingKey">Routing key to use for sending the message. For separation, it must contain dots no slashes.</param>
         /// <param name="message">Message to be sent.</param>
         /// <param name="publisherExchangeName">If not set, the value from the PublisherExchangeNameConfig property is used.</param>
-        public async Task SendAsync(string routingKey, IMessageContext message, string exchangeName = "amq.topic", string correlationId = null, ReplyTo replyTo = null, CancellationToken ct = default)
+        public Task SendAsync(string routingKey, IMessageContext message, string exchangeName = "amq.topic", string correlationId = null, ReplyTo replyTo = null, CancellationToken ct = default, bool mandatory = false)
         {
             if (string.IsNullOrEmpty(routingKey))
                 throw new ArgumentNullException(nameof(routingKey));
@@ -94,8 +97,12 @@ namespace RabbitMQ.Communication.Client
                 props.ReplyToAddress = new PublicationAddress(RabbitMQExtension.GetDefaultSubscriberExchangeName, replyTo.ExchangeName, replyTo.RoutingKey);
             }
 
-            await Task.Run(() => Channel.BasicPublish(exchangeName, routingKey, props, RabbitMQExtension.SerializeObject(message)), ct);
+            Channel.BasicPublish(exchangeName, routingKey, mandatory, props, RabbitMQExtension.SerializeObject(message));
+
+            return Task.CompletedTask;
         }
+
+
 
         /// <summary>
         /// Reply to configuration class

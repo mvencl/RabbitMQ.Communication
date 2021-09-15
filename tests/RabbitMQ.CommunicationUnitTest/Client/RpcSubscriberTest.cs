@@ -9,6 +9,7 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 using Xunit;
 
@@ -34,8 +35,7 @@ namespace RabbitMQ.Communication.Tests.Client
 
             IModel channel = CreateChannel();
 
-            Func<BaseMessageContext, BasicDeliverEventArgs, Task<string>> func = async (BaseMessageContext message1, BasicDeliverEventArgs ea) => 
-            await Task.FromResult(message1.Context);
+            Func<BaseMessageContext, BasicDeliverEventArgs, CancellationToken, Task<string>> func = async (BaseMessageContext message1, BasicDeliverEventArgs ea, CancellationToken ct) => await Task.FromResult(message1.Context);
             RpcSubscriber<BaseMessageContext> subscriber = new RpcSubscriber<BaseMessageContext>(channel, queueName, func,"amq.direct");
 
             BlockingCollection<string> respQueue = new BlockingCollection<string>();
@@ -55,7 +55,7 @@ namespace RabbitMQ.Communication.Tests.Client
 
             IModel channel = CreateChannel();
 
-            Func<BaseMessageContext, BasicDeliverEventArgs, Task<string>> func = async (BaseMessageContext message1, BasicDeliverEventArgs ea) => await Task.FromResult(message1.Context);
+            Func<BaseMessageContext, BasicDeliverEventArgs, CancellationToken, Task<string>> func = async (BaseMessageContext message1, BasicDeliverEventArgs ea, CancellationToken ct) => await Task.FromResult(message1.Context);
             RpcSubscriber<BaseMessageContext> subscriber = new RpcSubscriber<BaseMessageContext>(channel, queueName + ".#", func, "amq.topic");
 
             BlockingCollection<string> respQueue = new BlockingCollection<string>();

@@ -6,6 +6,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace RabbitMQ.Communication.Client
@@ -25,7 +26,7 @@ namespace RabbitMQ.Communication.Client
                     // TODO: dispose managed state (managed objects)                    
                     if (DisposeChannel) Channel.Dispose();
                 }
-
+                CancellationTokenSource.Clear();
                 // TODO: free unmanaged resources (unmanaged objects) and override finalizer
                 // TODO: set large fields to null
                 disposedValue = true;
@@ -62,12 +63,12 @@ namespace RabbitMQ.Communication.Client
         /// </summary>
         internal IModel Channel { get; }
 
-        public Subscriber(IConnection connection, string routingKey, Func<T, BasicDeliverEventArgs, Task> consumerFunction, string subscriberExchangeName = "amq.topic", ushort? prefetchCount = null)
-            : this(connection.CreateModel(), routingKey, consumerFunction, subscriberExchangeName, prefetchCount)
+        public Subscriber(IConnection connection, string routingKey, Func<T, BasicDeliverEventArgs, CancellationToken, Task> consumerFunction, string subscriberExchangeName = "amq.topic", ushort? prefetchCount = null, bool allowCancellation = true)
+            : this(connection.CreateModel(), routingKey, consumerFunction, subscriberExchangeName, prefetchCount, allowCancellation)
         {
             DisposeChannel = true; 
         }
-        public Subscriber(IModel channel, string routingKey, Func<T, BasicDeliverEventArgs, Task> consumerFunction, string subscriberExchangeName = "amq.topic", ushort? prefetchCount = null)
+        public Subscriber(IModel channel, string routingKey, Func<T, BasicDeliverEventArgs, CancellationToken, Task> consumerFunction, string subscriberExchangeName = "amq.topic", ushort? prefetchCount = null, bool allowCancellation = true)
         {
             ExchangeName = subscriberExchangeName;
             RoutingKey = RabbitMQExtension.CleanRoutingKey(routingKey);
@@ -76,6 +77,9 @@ namespace RabbitMQ.Communication.Client
             
             if (prefetchCount != null)
                 Channel.BasicQos(0, prefetchCount.Value, false);
+
+            if (allowCancellation)
+                CancelQueue(queueName);
 
             Channel.CreateQueue(queueName); 
             Channel.QueueBind(queueName, ExchangeName, RoutingKey);
@@ -86,11 +90,32 @@ namespace RabbitMQ.Communication.Client
                 Channel.DefaultConsumer = consumer;
 
             consumer.Received += async (object sender, BasicDeliverEventArgs ea) =>
-            {                
-                await consumerFunction(RabbitMQExtension.DeserializeObject<T>(ea.Body.Span.ToArray()), ea);
+            {
+                CancellationTokenSource cts = new CancellationTokenSource();
+                CancellationTokenSource.Add(ea.BasicProperties.CorrelationId, cts);
+
+                await consumerFunction(RabbitMQExtension.DeserializeObject<T>(ea.Body.Span.ToArray()), ea, cts.Token);
                 Channel.BasicAck(deliveryTag: ea.DeliveryTag, multiple: false);
             };
             Channel.BasicConsume(queueName, false, consumer);
-        }         
+        }
+
+        private Dictionary<string, CancellationTokenSource> CancellationTokenSource = new Dictionary<string, CancellationTokenSource>();
+
+        private void CancelQueue(string queueName)
+        {      
+            string cancelQueueName = "Cancelation:" + queueName + Guid.NewGuid().ToString();
+            Channel.CreateQueue(cancelQueueName, true);
+            Channel.QueueBind(cancelQueueName, "amq.fanout", "");
+            EventingBasicConsumer consumer = new EventingBasicConsumer(Channel);
+            consumer.Received += (object sender, BasicDeliverEventArgs ea) =>
+            {
+                if (CancellationTokenSource.TryGetValue(ea.BasicProperties.CorrelationId, out CancellationTokenSource cts))
+                    cts.Cancel();
+                Channel.BasicAck(deliveryTag: ea.DeliveryTag, multiple: false);
+            };
+            Channel.BasicConsume(cancelQueueName, false, consumer);
+        }
+
     }
 }

@@ -1,4 +1,5 @@
-﻿using RabbitMQ.Client;
+﻿using Microsoft.VisualStudio.TestPlatform.CommunicationUtilities;
+using RabbitMQ.Client;
 using RabbitMQ.Client.Events;
 using RabbitMQ.Communication.Context;
 using RabbitMQ.Communication.Contracts;
@@ -9,6 +10,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading;
+using System.Threading.Channels;
 using System.Threading.Tasks;
 using Xunit;
 
@@ -120,6 +122,14 @@ namespace RabbitMQ.Communication.Tests.Client
             }
         }
 
+        [Fact]
+        public async Task NoRouteFound()
+        {
+            using (var publisher = new Communication.Client.RpcPublisher(CreateChannel()))
+            {
+                await Assert.ThrowsAsync<MissingMethodException>(() => publisher.SendAsync("NotFound", new BaseMessageContext()));
+            }
+        }
 
         private void RpcSubscriberTest(IModel channel, string queueName, string exchangeName)
         {

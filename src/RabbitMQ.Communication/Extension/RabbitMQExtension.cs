@@ -43,7 +43,7 @@ namespace RabbitMQ.Communication.Extension
             }
         }
 
-        internal static void CreateQueue(this IModel channel, string queueName)
+        internal static void CreateQueue(this IModel channel, string queueName, bool exclusive = false)
         {
             Dictionary<string, object> args = new Dictionary<string, object>
             {
@@ -51,7 +51,7 @@ namespace RabbitMQ.Communication.Extension
                 { "x-expires", 1800000 }
             };
 
-            channel.QueueDeclare(queueName, true, false, true, args);
+            channel.QueueDeclare(queueName, true, exclusive, true, args);
         }
 
         public static ReadOnlyMemory<byte> SerializeObject<T>(T request, bool compress = true) where T : IMessageContext
