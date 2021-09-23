@@ -129,19 +129,19 @@ namespace RabbitMQ.Communication.Client
 
                 //setting max timeout
                 CancellationTokenSource = new CancellationTokenSource(TimeoutMs(timeoutSec));
-                CancellationTokenSource.Token.Register(
-                    () =>
+                CancellationTokenRegistration timeoutToken = CancellationTokenSource.Token.Register(
+                    async () =>
                     {
                         tcs.TrySetCanceled();
-                        callbackMapper.TryRemove(correlationId, out var tmp);
-                        Publisher.SendAsync(correlationId, new BaseMessageContext() { Context = "Canceled by timeout" }, exchangeName: "amq.fanout", correlationId: correlationId).Wait();
+                        callbackMapper.TryRemove(correlationId, out var tmp);                        
+                        await Publisher.SendAsync(correlationId, new BaseMessageContext() { Context = "Canceled by timeout" }, exchangeName: "amq.fanout", correlationId: correlationId);
                     });
-                ct.Register(
-                    () =>
+                CancellationTokenRegistration userToken = ct.Register(
+                    async () =>
                     {
                         tcs.TrySetCanceled();
                         callbackMapper.TryRemove(correlationId, out var tmp1);
-                        Publisher.SendAsync(correlationId, new BaseMessageContext() { Context = "Canceled by user" }, exchangeName: "amq.fanout", correlationId: correlationId).Wait();
+                        await Publisher.SendAsync(correlationId, new BaseMessageContext() { Context = "Canceled by user" }, exchangeName: "amq.fanout", correlationId: correlationId);
                     });
                 
                 Publisher.ReplyTo replyTo = new Publisher.ReplyTo()
@@ -152,12 +152,18 @@ namespace RabbitMQ.Communication.Client
 
                 await Publisher.SendAsync(routingKey, message, exchangeName, correlationId, replyTo, ct, mandatory: true);
 
-                return await tcs.Task;                
+                var test = await tcs.Task;
+
+                timeoutToken.Dispose();
+                userToken.Dispose();
+
+                return test;
 
             }
-            catch
+            catch (Exception ex)
             {
-                callbackMapper.TryRemove(correlationId, out var tmp);
+                if (callbackMapper.TryRemove(correlationId, out var tmp))
+                    tmp.SetException(ex);
                 throw;
             }
 

@@ -157,5 +157,36 @@ namespace RabbitMQ.Communication.Tests.Client
             Assert.True(wasCancelled1);
             Assert.False(wasCancelled2);
         }
+
+        [Fact]
+        public Task AsyncCheckTypeAsync()
+        {
+            string methodname = "RpcPublisherRpcSubscriberTest.AsyncCheckTypeAsync";
+            IModel channel = CreateChannel();            
+
+            Func<IMessageContext, BasicDeliverEventArgs, CancellationToken, Task<string>> func = async (message1, ea, ct) => 
+                {
+                    await Task.Delay(TimeSpan.FromSeconds(10), ct);
+                    return await Task.FromResult(message1.Context);
+                };
+
+            DateTime start = DateTime.Now;
+            DateTime end = DateTime.Now;
+
+            using (var subscriber = new RpcSubscriber<BaseMessageContext>(channel, methodname + ".#", func, "amq.topic"))
+            {
+                using (var publisher = new RpcPublisher(channel))
+                {
+                    Task.WaitAll(
+                        publisher.SendAsync(methodname + ".a1", new BaseMessageContext() { Context = "This is it 1" }, exchangeName: "amq.topic"),
+                        publisher.SendAsync(methodname + ".a1", new BaseMessageContext() { Context = "This is it 2" }, exchangeName: "amq.topic")
+                        );
+                    end = DateTime.Now;
+                }
+            }
+
+            Assert.True((end - start).Seconds < 20);
+            return Task.CompletedTask;
+        }
     }
 }
