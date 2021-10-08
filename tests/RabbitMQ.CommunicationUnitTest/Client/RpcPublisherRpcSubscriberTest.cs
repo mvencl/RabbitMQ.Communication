@@ -188,5 +188,48 @@ namespace RabbitMQ.Communication.Tests.Client
             Assert.True((end - start).Seconds < 20);
             return Task.CompletedTask;
         }
+
+        [Fact]
+        public async Task CorrelationIdTestAsync()
+        {
+            string methodname = "RpcPublisherRpcSubscriberTest.CorrelationIdTestAsync";
+            IModel channel = CreateChannel();
+            IMessageContext message = new BaseMessageContext() { Context = "This is it" };
+
+            Func<IMessageContext, BasicDeliverEventArgs, CancellationToken, Task<string>> func = async (IMessageContext message1, BasicDeliverEventArgs ea, CancellationToken ct) => 
+            await Task.FromResult(message1.Context);
+
+            using (var subscriber = new RpcSubscriber<BaseMessageContext>(channel, methodname + ".#", func, "amq.topic"))
+            {
+                using (var publisher = new RpcPublisher(channel))
+                {
+                    BaseResponseMessageContext receivedMessage = await publisher.SendAsync(methodname + ".a1", message, exchangeName: "amq.topic");
+                    Assert.Equal(message.CorrelationID, receivedMessage.CorrelationID);
+                }
+            }
+        }
+
+        [Fact]
+        public async Task ManualCorrelationIdTestAsync()
+        {
+            string methodname = "RpcPublisherRpcSubscriberTest.CorrelationIdTestAsync";
+            IModel channel = CreateChannel();
+
+            string manualcorrelationId = Guid.NewGuid().ToString();
+
+            IMessageContext message = new BaseMessageContext() { Context = "This is it", CorrelationID = manualcorrelationId };
+
+            Func<IMessageContext, BasicDeliverEventArgs, CancellationToken, Task<string>> func = async (IMessageContext message1, BasicDeliverEventArgs ea, CancellationToken ct) =>
+            await Task.FromResult(message1.Context);
+
+            using (var subscriber = new RpcSubscriber<BaseMessageContext>(channel, methodname + ".#", func, "amq.topic"))
+            {
+                using (var publisher = new RpcPublisher(channel))
+                {
+                    BaseResponseMessageContext receivedMessage = await publisher.SendAsync(methodname + ".a1", message, exchangeName: "amq.topic");
+                    Assert.Equal(manualcorrelationId, receivedMessage.CorrelationID);
+                }
+            }
+        }
     }
 }

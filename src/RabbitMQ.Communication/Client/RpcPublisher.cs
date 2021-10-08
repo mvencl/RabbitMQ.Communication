@@ -105,7 +105,7 @@ namespace RabbitMQ.Communication.Client
             if (message.IsError)
                 tcs.SetException(message.Exception);
 
-            await Task.Run(() => tcs.TrySetResult(message));
+            await Task.FromResult(tcs.TrySetResult(message));
         }
 
         private CancellationTokenSource CancellationTokenSource { get; set; } = null;
@@ -118,14 +118,15 @@ namespace RabbitMQ.Communication.Client
         /// <param name="publisherExchangeName">If not set, the value from the PublisherExchangeNameConfig property is used.</param>
         public async Task<BaseResponseMessageContext> SendAsync(string routingKey, IMessageContext message, int timeoutSec = 0, string exchangeName = "amq.topic", CancellationToken ct = default)
         {
-            string correlationId = RabbitMQExtension.GetCorrelationId();    
+            if(message == null) 
+                throw new ArgumentNullException(nameof(message));
+
+            message.CorrelationID = string.IsNullOrEmpty(message.CorrelationID) ? RabbitMQExtension.GetCorrelationId() : message.CorrelationID;
 
             try
             {
-                message.CorrelationID = correlationId;
-
                 TaskCompletionSource<BaseResponseMessageContext> tcs = new TaskCompletionSource<BaseResponseMessageContext>(TaskCreationOptions.RunContinuationsAsynchronously);
-                callbackMapper.TryAdd(correlationId, tcs);
+                callbackMapper.TryAdd(message.CorrelationID, tcs);
 
                 //setting max timeout
                 CancellationTokenSource = new CancellationTokenSource(TimeoutMs(timeoutSec));
@@ -133,15 +134,15 @@ namespace RabbitMQ.Communication.Client
                     async () =>
                     {
                         tcs.TrySetCanceled();
-                        callbackMapper.TryRemove(correlationId, out var tmp);                        
-                        await Publisher.SendAsync(correlationId, new BaseMessageContext() { Context = "Canceled by timeout" }, exchangeName: "amq.fanout", correlationId: correlationId);
+                        callbackMapper.TryRemove(message.CorrelationID, out var tmp);                        
+                        await Publisher.SendAsync(message.CorrelationID, new BaseMessageContext() { Context = "Canceled by timeout" }, exchangeName: "amq.fanout", correlationId: message.CorrelationID);
                     });
                 CancellationTokenRegistration userToken = ct.Register(
                     async () =>
                     {
                         tcs.TrySetCanceled();
-                        callbackMapper.TryRemove(correlationId, out var tmp1);
-                        await Publisher.SendAsync(correlationId, new BaseMessageContext() { Context = "Canceled by user" }, exchangeName: "amq.fanout", correlationId: correlationId);
+                        callbackMapper.TryRemove(message.CorrelationID, out var tmp1);
+                        await Publisher.SendAsync(message.CorrelationID, new BaseMessageContext() { Context = "Canceled by user" }, exchangeName: "amq.fanout", correlationId: message.CorrelationID);
                     });
                 
                 Publisher.ReplyTo replyTo = new Publisher.ReplyTo()
@@ -150,7 +151,7 @@ namespace RabbitMQ.Communication.Client
                     RoutingKey = Subscriber.RoutingKey
                 };
 
-                await Publisher.SendAsync(routingKey, message, exchangeName, correlationId, replyTo, ct, mandatory: true);
+                await Publisher.SendAsync(routingKey, message, exchangeName, message.CorrelationID, replyTo, ct, mandatory: true);
 
                 var test = await tcs.Task;
 
@@ -162,9 +163,9 @@ namespace RabbitMQ.Communication.Client
             }
             catch (Exception ex)
             {
-                if (callbackMapper.TryRemove(correlationId, out var tmp))
+                if (callbackMapper.TryRemove(message.CorrelationID, out var tmp))
                     tmp.SetException(ex);
-                throw;
+                throw ex;
             }
 
         }
