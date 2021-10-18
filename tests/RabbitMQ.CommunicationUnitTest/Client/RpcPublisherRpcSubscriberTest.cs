@@ -240,7 +240,7 @@ namespace RabbitMQ.Communication.Tests.Client
 
             Func<IMessageContext, BasicDeliverEventArgs, CancellationToken, Task<string>> func = async (IMessageContext message1, BasicDeliverEventArgs ea, CancellationToken ct) =>
             {
-                int delay = new Random().Next(10, 30000);
+                int delay = new Random().Next(10, 1000);
                 //await Task.Delay(delay);
                 return await Task.FromResult(message1.Context);
             };
@@ -273,7 +273,11 @@ namespace RabbitMQ.Communication.Tests.Client
                         Task<BaseResponseMessageContext> task9 = publisher.SendAsync(methodname + ".a1", message9, exchangeName: "amq.direct");
                         Task<BaseResponseMessageContext> task10 = publisher.SendAsync(methodname + ".a1", message10, exchangeName: "amq.direct");
 
-                        Task.WaitAll(task1, task2, task3);
+                        DateTime start = DateTime.Now;
+
+                        Task.WaitAll(task1, task2, task3, task4, task5, task6, task7, task8, task9, task10);
+
+                        DateTime end = DateTime.Now;
 
                         Assert.Equal(message1.Context, task1.Result.Context);
                         Assert.Equal(message2.Context, task2.Result.Context);
@@ -285,6 +289,7 @@ namespace RabbitMQ.Communication.Tests.Client
                         Assert.Equal(message8.Context, task8.Result.Context);
                         Assert.Equal(message9.Context, task9.Result.Context);
                         Assert.Equal(message10.Context, task10.Result.Context);
+                        Assert.InRange((end - start).Milliseconds, 0, 5000);
                     }
                     
                 }

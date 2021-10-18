@@ -10,6 +10,7 @@ using System.Linq;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
 
 namespace RabbitMQ.Communication.Client
 {
@@ -71,6 +72,7 @@ namespace RabbitMQ.Communication.Client
         internal Subscriber<BaseResponseMessageContext> Subscriber { get; }
         internal Publisher Publisher { get; }
         internal IModel Channel { get; }
+        internal ILogger Logger { get; }
         private bool DisposeChannel { get; } = false;
 
         private readonly ConcurrentDictionary<string, TaskCompletionSource<BaseResponseMessageContext>> callbackMapper =
@@ -80,7 +82,7 @@ namespace RabbitMQ.Communication.Client
         /// Constructor
         /// </summary>
         /// <param name="connection">Connection</param>
-        public RpcPublisher(IConnection connection, string subscriberExchangeName = "amq.direct") : this(connection.CreateModel(), subscriberExchangeName)
+        public RpcPublisher(IConnection connection, string subscriberExchangeName = "amq.direct", ILogger logger = null) : this(connection.CreateModel(), subscriberExchangeName, logger)
         {
             // Channel is created in this class please dispose this channel
             DisposeChannel = true;
@@ -90,22 +92,35 @@ namespace RabbitMQ.Communication.Client
         /// Constructor
         /// </summary>
         /// <param name="channel">Channel</param>
-        public RpcPublisher(IModel channel, string subscriberExchangeName = "amq.direct")
+        public RpcPublisher(IModel channel, string subscriberExchangeName = "amq.direct", ILogger logger = null)
         {
+            Logger = logger;
             Channel = channel;
             Channel.BasicReturn += Channel_BasicReturn;
             Publisher = new Publisher(channel);
             Subscriber = new Subscriber<BaseResponseMessageContext>(channel, RabbitMQExtension.GetDefaultSubscriberRoutingKey, ConsumerFunction, subscriberExchangeName ?? RabbitMQExtension.GetDefaultSubscriberExchangeName, allowCancellation: false);        }
 
-        private async Task ConsumerFunction(BaseResponseMessageContext message, BasicDeliverEventArgs ea, CancellationToken ct = default)
+        private Task ConsumerFunction(BaseResponseMessageContext message, BasicDeliverEventArgs ea, CancellationToken ct = default)
         {
-            if (!callbackMapper.TryRemove(ea.BasicProperties.CorrelationId, out TaskCompletionSource<BaseResponseMessageContext> tcs))
-                return;
+            Logger?.LogInformation("RpcPublisher.ConsumerFunction start CorrelationID:" + ea.BasicProperties.CorrelationId, ea.BasicProperties.CorrelationId);
+            if (callbackMapper.TryRemove(ea.BasicProperties.CorrelationId, out TaskCompletionSource<BaseResponseMessageContext> tcs))
+            {
+                if (message.IsError)
+                {
+                    tcs.SetException(message.Exception);
+                    Logger?.LogError(message.Exception, "RpcPublisher.ConsumerFunction Task set exception CorrelationID:" + ea.BasicProperties.CorrelationId, ea.BasicProperties.CorrelationId);
+                }
+                    
+                else
+                {
+                    tcs.TrySetResult(message);
+                    Logger?.LogInformation("RpcPublisher.ConsumerFunction success CorrelationID:" + ea.BasicProperties.CorrelationId, ea.BasicProperties.CorrelationId);
+                }                    
+            }
 
-            if (message.IsError)
-                tcs.SetException(message.Exception);
+            Logger?.LogInformation("RpcPublisher.ConsumerFunction finish CorrelationID:" + ea.BasicProperties.CorrelationId, ea.BasicProperties.CorrelationId);
+            return Task.CompletedTask;
 
-            await Task.FromResult(tcs.TrySetResult(message));
         }
 
         private CancellationTokenSource CancellationTokenSource { get; set; } = null;
@@ -123,6 +138,9 @@ namespace RabbitMQ.Communication.Client
 
             message.CorrelationID = string.IsNullOrEmpty(message.CorrelationID) ? RabbitMQExtension.GetCorrelationId() : message.CorrelationID;
 
+            if (callbackMapper.ContainsKey(message.CorrelationID))
+                throw new DuplicateWaitObjectException(nameof(message.CorrelationID), "A message with this correlation id has already been used. Please generate new ones.");
+
             try
             {
                 TaskCompletionSource<BaseResponseMessageContext> tcs = new TaskCompletionSource<BaseResponseMessageContext>(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -133,6 +151,7 @@ namespace RabbitMQ.Communication.Client
                 CancellationTokenRegistration timeoutToken = CancellationTokenSource.Token.Register(
                     async () =>
                     {
+                        Logger?.LogError("RpcPublisher.SendAsync canceled by timeout CorrelationID:" + message.CorrelationID, message.CorrelationID);
                         tcs.TrySetCanceled();
                         callbackMapper.TryRemove(message.CorrelationID, out var tmp);                        
                         await Publisher.SendAsync(message.CorrelationID, new BaseMessageContext() { Context = "Canceled by timeout" }, exchangeName: "amq.fanout", correlationId: message.CorrelationID);
@@ -140,6 +159,7 @@ namespace RabbitMQ.Communication.Client
                 CancellationTokenRegistration userToken = ct.Register(
                     async () =>
                     {
+                        Logger?.LogError("RpcPublisher.SendAsync canceled by user CorrelationID:" + message.CorrelationID, message.CorrelationID);
                         tcs.TrySetCanceled();
                         callbackMapper.TryRemove(message.CorrelationID, out var tmp1);
                         await Publisher.SendAsync(message.CorrelationID, new BaseMessageContext() { Context = "Canceled by user" }, exchangeName: "amq.fanout", correlationId: message.CorrelationID);
@@ -155,15 +175,20 @@ namespace RabbitMQ.Communication.Client
 
                 var test = await tcs.Task;
 
+                Logger?.LogInformation("RpcPublisher.SendAsync ready for dispose CorrelationID:" + message.CorrelationID, message.CorrelationID);
+
                 timeoutToken.Dispose();
                 userToken.Dispose();
+
+                Logger?.LogInformation("RpcPublisher.SendAsync finish CorrelationID:" + message.CorrelationID, message.CorrelationID);
 
                 return test;
 
             }
             catch (Exception ex)
             {
-                if (callbackMapper.TryRemove(message.CorrelationID, out var tmp))
+                Logger?.LogError(ex, "RpcPublisher.SendAsync catch exception CorrelationID:" + message.CorrelationID, message.CorrelationID);
+                if (callbackMapper.TryRemove(message.CorrelationID, out var tmp))                
                     tmp.SetException(ex);
                 throw ex;
             }

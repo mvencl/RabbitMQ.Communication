@@ -1,4 +1,5 @@
-﻿using RabbitMQ.Client;
+﻿using Microsoft.Extensions.Logging;
+using RabbitMQ.Client;
 using RabbitMQ.Client.Events;
 using RabbitMQ.Communication.Contracts;
 using RabbitMQ.Communication.Extension;
@@ -62,13 +63,14 @@ namespace RabbitMQ.Communication.Client
         /// Channel
         /// </summary>
         internal IModel Channel { get; }
+        internal ILogger Logger { get; }
 
-        public Subscriber(IConnection connection, string routingKey, Func<T, BasicDeliverEventArgs, CancellationToken, Task> consumerFunction, string subscriberExchangeName = "amq.topic", ushort? prefetchCount = null, bool allowCancellation = true)
-            : this(connection.CreateModel(), routingKey, consumerFunction, subscriberExchangeName, prefetchCount, allowCancellation)
+        public Subscriber(IConnection connection, string routingKey, Func<T, BasicDeliverEventArgs, CancellationToken, Task> consumerFunction, string subscriberExchangeName = "amq.topic", ushort? prefetchCount = null, bool allowCancellation = true, ILogger logger = null)
+            : this(connection.CreateModel(), routingKey, consumerFunction, subscriberExchangeName, prefetchCount, allowCancellation, logger)
         {
             DisposeChannel = true; 
         }
-        public Subscriber(IModel channel, string routingKey, Func<T, BasicDeliverEventArgs, CancellationToken, Task> consumerFunction, string subscriberExchangeName = "amq.topic", ushort? prefetchCount = null, bool allowCancellation = true)
+        public Subscriber(IModel channel, string routingKey, Func<T, BasicDeliverEventArgs, CancellationToken, Task> consumerFunction, string subscriberExchangeName = "amq.topic", ushort? prefetchCount = null, bool allowCancellation = true, ILogger logger = null)
         {
             ExchangeName = subscriberExchangeName;
             RoutingKey = RabbitMQExtension.CleanRoutingKey(routingKey);
@@ -91,11 +93,25 @@ namespace RabbitMQ.Communication.Client
 
             consumer.Received += async (object sender, BasicDeliverEventArgs ea) =>
             {
-                CancellationTokenSource cts = new CancellationTokenSource();
-                CancellationTokenSource.Add(ea.BasicProperties.CorrelationId, cts);
+                try
+                {
+                    logger?.LogInformation("Subscriber.Received start CorrelationID:" + ea.BasicProperties.CorrelationId, ea.BasicProperties.CorrelationId);
 
-                await consumerFunction(RabbitMQExtension.DeserializeObject<T>(ea.Body.Span.ToArray()), ea, cts.Token);
-                Channel.BasicAck(deliveryTag: ea.DeliveryTag, multiple: false);
+                    CancellationTokenSource cts = new CancellationTokenSource();
+                    CancellationTokenSource.Add(ea.BasicProperties.CorrelationId, cts);
+
+                    logger?.LogInformation("Subscriber.Received consumerFunction was called CorrelationID:" + ea.BasicProperties.CorrelationId, ea.BasicProperties.CorrelationId);
+                    await consumerFunction(RabbitMQExtension.DeserializeObject<T>(ea.Body.Span.ToArray()), ea, cts.Token);
+
+                    Channel.BasicAck(deliveryTag: ea.DeliveryTag, multiple: false);
+                    logger?.LogInformation("Subscriber.Received finish CorrelationID:" + ea.BasicProperties.CorrelationId, ea.BasicProperties.CorrelationId);
+                }
+                catch (Exception ex)
+                {
+                    Logger?.LogError(ex, "Subscriber.Received ended with exception CorrelationID:" + ea.BasicProperties.CorrelationId, ea.BasicProperties.CorrelationId);
+                    throw ex;
+                }
+
             };
             Channel.BasicConsume(queueName, false, consumer);
         }
@@ -110,6 +126,7 @@ namespace RabbitMQ.Communication.Client
             EventingBasicConsumer consumer = new EventingBasicConsumer(Channel);
             consumer.Received += (object sender, BasicDeliverEventArgs ea) =>
             {
+                Logger?.LogError("Subscriber.CancelQueue canceled CorrelationID:" + ea.BasicProperties.CorrelationId, ea.BasicProperties.CorrelationId);
                 if (CancellationTokenSource.TryGetValue(ea.BasicProperties.CorrelationId, out CancellationTokenSource cts))
                     cts.Cancel();
                 Channel.BasicAck(deliveryTag: ea.DeliveryTag, multiple: false);

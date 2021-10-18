@@ -88,6 +88,7 @@ namespace RabbitMQ.Communication.Tests.Client
 
                 for (int i = 0; i < iteration; i++)
                 {
+                    message.CorrelationID = null;
                     tasks.Add(publisher.SendAsync($"{queueName}.a{i}", message, exchangeName: "amq.topic"));
                 }
 
