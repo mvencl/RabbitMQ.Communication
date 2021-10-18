@@ -9,11 +9,11 @@
     <PackageTags>rabbitmq rpc microservices</PackageTags>
     <PackageProjectUrl>https://github.com/mvencl/RabbitMQ.Communication</PackageProjectUrl>
     <Description>Simple library for communication and RPC communication between services using RabbitMQ as a message queueing.</Description>
-    <Version>1.4.3</Version>
+    <Version>1.4.4</Version>
   </PropertyGroup>
 
   <ItemGroup>    
-    <PackageReference Include="Microsoft.Extensions.Logging" Version="5.0.0" />    
+    <PackageReference Include="Microsoft.Extensions.Logging" Version="2.2.0" />    
     <PackageReference Include="Microsoft.Toolkit.HighPerformance" Version="7.0.2" />
     <PackageReference Include="Newtonsoft.Json" Version="13.0.1" />
     <PackageReference Include="RabbitMQ.Client" Version="6.2.2" />
