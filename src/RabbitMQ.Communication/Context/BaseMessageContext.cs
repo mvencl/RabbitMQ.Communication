@@ -10,9 +10,10 @@ namespace RabbitMQ.Communication.Context
 {
     public class BaseMessageContext : IMessageContext
     {
-        public string Context { get; set; }
+        public BaseMessageContext() { }
+        public BaseMessageContext(string context): base() { Context = context;  }
 
-        public string CorrelationID { get; set; } = Extension.RabbitMQExtension.GetCorrelationId();
+        public string Context { get; set; }
 
         public T GetContext<T>()
         {
@@ -22,15 +23,6 @@ namespace RabbitMQ.Communication.Context
         public void SetContext<T>(T context)
         {
             Context = JsonConvert.SerializeObject(context);
-        }
-
-        public virtual BaseResponseMessageContext GenerateResponse(string context = null)
-        {
-            return new BaseResponseMessageContext
-            {
-                CorrelationID = this.CorrelationID,
-                Context = context
-            };
         }
     }
 }

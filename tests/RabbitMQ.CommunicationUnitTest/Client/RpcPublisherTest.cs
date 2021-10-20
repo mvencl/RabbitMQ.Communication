@@ -88,7 +88,6 @@ namespace RabbitMQ.Communication.Tests.Client
 
                 for (int i = 0; i < iteration; i++)
                 {
-                    message.CorrelationID = null;
                     tasks.Add(publisher.SendAsync($"{queueName}.a{i}", message, exchangeName: "amq.topic"));
                 }
 
@@ -146,7 +145,7 @@ namespace RabbitMQ.Communication.Tests.Client
                 channel.BasicAck(deliveryTag: ea.DeliveryTag, multiple: false);
 
                 BaseMessageContext request = RabbitMQExtension.DeserializeObject<BaseMessageContext>(ea.Body);
-                BaseMessageContext response = request.GenerateResponse(request.Context);
+                BaseMessageContext response = new BaseMessageContext(request.Context);
 
                 IBasicProperties props = channel.CreateBasicProperties();
                 props.CorrelationId = ea.BasicProperties.CorrelationId;

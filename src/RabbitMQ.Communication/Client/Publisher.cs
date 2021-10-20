@@ -1,4 +1,5 @@
-﻿using RabbitMQ.Client;
+﻿using Microsoft.Extensions.Logging;
+using RabbitMQ.Client;
 using RabbitMQ.Client.Events;
 using RabbitMQ.Communication.Context;
 using RabbitMQ.Communication.Contracts;
@@ -51,12 +52,13 @@ namespace RabbitMQ.Communication.Client
 
         internal IModel Channel { get; }
         private bool DisposeChannel { get; } = false;
+        internal ILogger Logger { get; }
 
         /// <summary>
         /// Constructor
         /// </summary>
         /// <param name="connection">Connection</param>
-        public Publisher(IConnection connection) : this(connection.CreateModel())
+        public Publisher(IConnection connection, ILogger logger = null) : this(connection.CreateModel(), logger)
         {
             // Channel is created in this class please dispose this channel
             DisposeChannel = true;
@@ -66,9 +68,10 @@ namespace RabbitMQ.Communication.Client
         /// Constructor
         /// </summary>
         /// <param name="channel">Channel</param>
-        public Publisher(IModel channel)
+        public Publisher(IModel channel, ILogger logger = null)
         {
-            Channel = channel;            
+            Channel = channel;
+            Logger = logger;
         }
 
         /// <summary>
@@ -96,6 +99,8 @@ namespace RabbitMQ.Communication.Client
             {
                 props.ReplyToAddress = new PublicationAddress(RabbitMQExtension.GetDefaultSubscriberExchangeName, replyTo.ExchangeName, replyTo.RoutingKey);
             }
+
+            Logger?.LogDebug("Message with correlationId:{correlationId} was sended to {Exchange} -> {RoutingKey}", correlationId, exchangeName, routingKey);
 
             Channel.BasicPublish(exchangeName, routingKey, mandatory, props, RabbitMQExtension.SerializeObject(message));
 
