@@ -1,7 +1,6 @@
 ﻿using RabbitMQ.Client;
 using RabbitMQ.Communication.Contracts;
 using System;
-using static System.Net.Mime.MediaTypeNames;
 
 namespace RabbitMQ.Communication.Extension
 {
@@ -22,7 +21,7 @@ namespace RabbitMQ.Communication.Extension
                 factory.VirtualHost = config.VirtualHost ?? factory.VirtualHost;
                 return factory.CreateConnection(GetConnectionName(additionalTextConnectionName));
             }
-            catch(Exception ex)
+            catch (Exception ex)
             {
                 throw ex;
             }

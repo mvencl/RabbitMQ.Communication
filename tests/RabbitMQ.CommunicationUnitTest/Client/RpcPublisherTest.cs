@@ -1,16 +1,12 @@
-﻿using Microsoft.VisualStudio.TestPlatform.CommunicationUtilities;
-using RabbitMQ.Client;
+﻿using RabbitMQ.Client;
 using RabbitMQ.Client.Events;
 using RabbitMQ.Communication.Context;
 using RabbitMQ.Communication.Contracts;
 using RabbitMQ.Communication.Extension;
 using System;
-using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
-using System.Text;
 using System.Threading;
-using System.Threading.Channels;
 using System.Threading.Tasks;
 using Xunit;
 
@@ -76,7 +72,7 @@ namespace RabbitMQ.Communication.Tests.Client
 
             string queueName = RabbitMQExtension.CleanRoutingKey("RpcPublisherTest.TopicParallelRunAsync".ToLower().Trim());
 
-            IMessageContext message = new BaseMessageContext() { Context = "This is route" };            
+            IMessageContext message = new BaseMessageContext() { Context = "This is route" };
 
             IModel channel = CreateChannel();
 
@@ -116,7 +112,7 @@ namespace RabbitMQ.Communication.Tests.Client
                 CancellationTokenSource source = new CancellationTokenSource();
                 Task<BaseResponseMessageContext> receivedMessage = publisher.SendAsync(queueName, message, exchangeName: "amq.direct", ct: source.Token);
                 source.Cancel();
-                Assert.Throws<AggregateException>(() => { receivedMessage.Wait(); });                
+                Assert.Throws<AggregateException>(() => { receivedMessage.Wait(); });
                 Assert.True(receivedMessage.IsCanceled);
                 Assert.Equal(0, publisher.ActiveTasks);
             }
@@ -153,7 +149,7 @@ namespace RabbitMQ.Communication.Tests.Client
             };
 
         }
-       
+
         public void Dispose()
         {
             _chanel.Dispose();

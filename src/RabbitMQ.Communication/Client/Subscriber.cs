@@ -5,14 +5,12 @@ using RabbitMQ.Communication.Contracts;
 using RabbitMQ.Communication.Extension;
 using System;
 using System.Collections.Generic;
-using System.Linq;
-using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 
 namespace RabbitMQ.Communication.Client
 {
-    public class Subscriber<T> : IDisposable where T:IMessageContext
+    public class Subscriber<T> : IDisposable where T : IMessageContext
     {
         #region Dispose
         private bool DisposeChannel { get; } = false;
@@ -68,7 +66,7 @@ namespace RabbitMQ.Communication.Client
         public Subscriber(IConnection connection, string routingKey, Func<T, BasicDeliverEventArgs, CancellationToken, Task> consumerFunction, string subscriberExchangeName = "amq.topic", ushort? prefetchCount = null, bool allowCancellation = true, ILogger logger = null)
             : this(connection.CreateModel(), routingKey, consumerFunction, subscriberExchangeName, prefetchCount, allowCancellation, logger)
         {
-            DisposeChannel = true; 
+            DisposeChannel = true;
         }
         public Subscriber(IModel channel, string routingKey, Func<T, BasicDeliverEventArgs, CancellationToken, Task> consumerFunction, string subscriberExchangeName = "amq.topic", ushort? prefetchCount = null, bool allowCancellation = true, ILogger logger = null)
         {
@@ -76,14 +74,14 @@ namespace RabbitMQ.Communication.Client
             RoutingKey = RabbitMQExtension.CleanRoutingKey(routingKey);
             string queueName = RoutingKey;
             Channel = channel;
-            
+
             if (prefetchCount != null)
                 Channel.BasicQos(0, prefetchCount.Value, false);
 
             if (allowCancellation)
                 CancelQueue(queueName);
 
-            Channel.CreateQueue(queueName); 
+            Channel.CreateQueue(queueName);
             Channel.QueueBind(queueName, ExchangeName, RoutingKey);
 
             EventingBasicConsumer consumer = new EventingBasicConsumer(Channel);
@@ -115,7 +113,7 @@ namespace RabbitMQ.Communication.Client
         private Dictionary<string, CancellationTokenSource> CancellationTokenSource = new Dictionary<string, CancellationTokenSource>();
 
         private void CancelQueue(string queueName)
-        {      
+        {
             string cancelQueueName = "Cancelation:" + queueName + Guid.NewGuid().ToString();
             Channel.CreateQueue(cancelQueueName, true);
             Channel.QueueBind(cancelQueueName, "amq.fanout", "");

@@ -1,15 +1,12 @@
-﻿using RabbitMQ.Communication.Contracts;
+﻿using Microsoft.Toolkit.HighPerformance;
+using Newtonsoft.Json;
+using RabbitMQ.Client;
+using RabbitMQ.Communication.Contracts;
 using System;
 using System.Collections.Generic;
 using System.IO;
 using System.IO.Compression;
-using System.Linq;
-using System.Runtime.Serialization.Formatters.Binary;
 using System.Text;
-using System.Threading.Tasks;
-using RabbitMQ.Client;
-using Microsoft.Toolkit.HighPerformance;
-using Newtonsoft.Json;
 
 namespace RabbitMQ.Communication.Extension
 {
@@ -100,7 +97,7 @@ namespace RabbitMQ.Communication.Extension
             {
                 return JsonConvert.DeserializeObject<T>(Encoding.UTF8.GetString(response.Span.ToArray()));
             }
-        }    
+        }
 
     }
 }

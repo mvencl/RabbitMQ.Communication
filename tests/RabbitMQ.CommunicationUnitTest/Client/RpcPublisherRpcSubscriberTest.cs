@@ -7,8 +7,6 @@ using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
-using System.Linq;
-using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using Xunit;
@@ -162,9 +160,9 @@ namespace RabbitMQ.Communication.Tests.Client
         public Task AsyncCheckTypeAsync()
         {
             string methodname = "RpcPublisherRpcSubscriberTest.AsyncCheckTypeAsync";
-            IModel channel = CreateChannel();            
+            IModel channel = CreateChannel();
 
-            Func<IMessageContext, BasicDeliverEventArgs, CancellationToken, Task<string>> func = async (message1, ea, ct) => 
+            Func<IMessageContext, BasicDeliverEventArgs, CancellationToken, Task<string>> func = async (message1, ea, ct) =>
                 {
                     await Task.Delay(TimeSpan.FromSeconds(10), ct);
                     return await Task.FromResult(message1.Context);
@@ -193,7 +191,7 @@ namespace RabbitMQ.Communication.Tests.Client
         public void PerformanceTestAsync()
         {
             string methodname = "RpcPublisherRpcSubscriberTest.DirectAsync";
-            IModel channel = CreateChannel();           
+            IModel channel = CreateChannel();
             Random random = new Random();
 
             Func<IMessageContext, BasicDeliverEventArgs, CancellationToken, Task<string>> func = async (IMessageContext message1, BasicDeliverEventArgs ea, CancellationToken ct) =>
@@ -207,12 +205,12 @@ namespace RabbitMQ.Communication.Tests.Client
             {
                 using (var publisher = new RpcPublisher(channel))
                 {
-                    for(int i =0; i < 1000; i++)
+                    for (int i = 0; i < 1000; i++)
                     {
                         int count = random.Next(2, 15);
                         List<Task> tasks = new List<Task>();
 
-                        for(int y=0 ; y<count; y++)
+                        for (int y = 0; y < count; y++)
                         {
                             tasks.Add(publisher.SendAsync(methodname + ".a1", new BaseMessageContext() { Context = "This is it task" + count }, exchangeName: "amq.direct"));
                         }
@@ -225,7 +223,7 @@ namespace RabbitMQ.Communication.Tests.Client
 
                         Assert.InRange((end - start).Milliseconds, 0, 5000);
                     }
-                    
+
                 }
             }
         }

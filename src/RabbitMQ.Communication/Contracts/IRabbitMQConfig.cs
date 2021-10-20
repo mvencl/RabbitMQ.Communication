@@ -1,8 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Text;
-
-namespace RabbitMQ.Communication.Contracts
+﻿namespace RabbitMQ.Communication.Contracts
 {
     public interface IRabbitMQConfig
     {

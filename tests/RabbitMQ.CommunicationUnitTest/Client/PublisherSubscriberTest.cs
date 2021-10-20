@@ -4,9 +4,6 @@ using RabbitMQ.Communication.Context;
 using RabbitMQ.Communication.Contracts;
 using System;
 using System.Collections.Concurrent;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using Xunit;
@@ -45,8 +42,8 @@ namespace RabbitMQ.Communication.Tests.Client
                 using (var publisher = new Communication.Client.Publisher(channel))
                 {
                     await publisher.SendAsync(methodname + ".a1", message, exchangeName: "amq.direct");
-                }                    
-            }   
+                }
+            }
 
             string receivedMessage = respQueue.Take();
             Assert.Equal(message.Context, receivedMessage);
@@ -69,8 +66,8 @@ namespace RabbitMQ.Communication.Tests.Client
                 using (var publisher = new Communication.Client.Publisher(channel))
                 {
                     await publisher.SendAsync(methodname + ".a1", message, exchangeName: "amq.topic");
-                }                    
-            }    
+                }
+            }
 
             string receivedMessage = respQueue.Take();
             Assert.Equal(message.Context, receivedMessage);

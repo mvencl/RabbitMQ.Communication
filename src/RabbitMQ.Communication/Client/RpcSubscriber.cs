@@ -2,14 +2,9 @@
 using RabbitMQ.Client;
 using RabbitMQ.Client.Events;
 using RabbitMQ.Communication.Context;
-using RabbitMQ.Communication.Contracts;
 using RabbitMQ.Communication.Extension;
 using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
 using System.Threading;
-using System.Threading.Channels;
 using System.Threading.Tasks;
 
 namespace RabbitMQ.Communication.Client
@@ -74,11 +69,11 @@ namespace RabbitMQ.Communication.Client
         /// </summary>
         /// <param name="channel">Channel</param>
         public RpcSubscriber(IModel channel, string routingKey, Func<T, BasicDeliverEventArgs, CancellationToken, Task<string>> consumerFunction, string subscriberExchangeName = "amq.topic", ushort? prefetchCount = null, ILogger logger = null)
-        {            
+        {
             Channel = channel;
             Logger = logger;
             Publisher = new Publisher(channel);
-            Subscriber = new Subscriber<T>(channel, routingKey, SubscriberFunction, subscriberExchangeName ?? RabbitMQExtension.GetDefaultSubscriberExchangeName, prefetchCount);            
+            Subscriber = new Subscriber<T>(channel, routingKey, SubscriberFunction, subscriberExchangeName ?? RabbitMQExtension.GetDefaultSubscriberExchangeName, prefetchCount);
             ConsumerFunction = consumerFunction;
         }
 
@@ -112,7 +107,7 @@ namespace RabbitMQ.Communication.Client
             {
                 throw new Exception($"Error when sending response back for correlationId:{ea.BasicProperties.CorrelationId}", ex);
             }
-            
+
         }
     }
 }

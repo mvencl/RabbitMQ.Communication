@@ -1,16 +1,13 @@
-﻿using RabbitMQ.Client;
+﻿using Microsoft.Extensions.Logging;
+using RabbitMQ.Client;
 using RabbitMQ.Client.Events;
 using RabbitMQ.Communication.Context;
 using RabbitMQ.Communication.Contracts;
 using RabbitMQ.Communication.Extension;
 using System;
 using System.Collections.Concurrent;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
-using Microsoft.Extensions.Logging;
 
 namespace RabbitMQ.Communication.Client
 {
@@ -42,10 +39,10 @@ namespace RabbitMQ.Communication.Client
                     if (DisposeChannel) Channel.Dispose();
                 }
                 // TODO: free unmanaged resources (unmanaged objects) and override finalizer                
-                foreach(TaskCompletionSource<BaseResponseMessageContext> t in callbackMapper.Values)
+                foreach (TaskCompletionSource<BaseResponseMessageContext> t in callbackMapper.Values)
                 {
                     t.TrySetCanceled();
-                }                
+                }
                 callbackMapper.Clear();
 
                 // TODO: set large fields to null                
@@ -68,7 +65,7 @@ namespace RabbitMQ.Communication.Client
             GC.SuppressFinalize(this);
         }
         #endregion Dispose
-                
+
         internal Subscriber<BaseResponseMessageContext> Subscriber { get; }
         internal Publisher Publisher { get; }
         internal IModel Channel { get; }
@@ -98,7 +95,8 @@ namespace RabbitMQ.Communication.Client
             Channel = channel;
             Channel.BasicReturn += Channel_BasicReturn;
             Publisher = new Publisher(channel);
-            Subscriber = new Subscriber<BaseResponseMessageContext>(channel, RabbitMQExtension.GetDefaultSubscriberRoutingKey, ConsumerFunctionAsync, subscriberExchangeName ?? RabbitMQExtension.GetDefaultSubscriberExchangeName, allowCancellation: false, logger: logger);        }
+            Subscriber = new Subscriber<BaseResponseMessageContext>(channel, RabbitMQExtension.GetDefaultSubscriberRoutingKey, ConsumerFunctionAsync, subscriberExchangeName ?? RabbitMQExtension.GetDefaultSubscriberExchangeName, allowCancellation: false, logger: logger);
+        }
 
         private async Task ConsumerFunctionAsync(BaseResponseMessageContext message, BasicDeliverEventArgs ea, CancellationToken ct = default)
         {
@@ -125,8 +123,8 @@ namespace RabbitMQ.Communication.Client
                     Logger?.LogDebug("CorrelationId:{correlationId} and Context:{Context}", ea.BasicProperties.CorrelationId, message.Context);
                 }
             }
-            catch(Exception ex)
-            {                
+            catch (Exception ex)
+            {
                 Logger?.LogError(ex, "RpcPublisher.ConsumerFunction ended with error for correlationId:{correlationId}", ea.BasicProperties.CorrelationId);
                 throw ex;
             }
@@ -143,7 +141,7 @@ namespace RabbitMQ.Communication.Client
         /// <param name="publisherExchangeName">If not set, the value from the PublisherExchangeNameConfig property is used.</param>
         public async Task<BaseResponseMessageContext> SendAsync(string routingKey, IMessageContext message, int timeoutSec = 0, string exchangeName = "amq.topic", CancellationToken ct = default)
         {
-            if(message == null) 
+            if (message == null)
                 throw new ArgumentNullException(nameof(message));
 
             string correlationId = RabbitMQExtension.GetCorrelationId();
@@ -164,7 +162,7 @@ namespace RabbitMQ.Communication.Client
                     {
                         Logger?.LogWarning("RpcPublisher.SendAsync Request was canceled by timeout. CorrelationId:{correlationId}", correlationId);
                         tcs.SetCanceled();
-                        callbackMapper.TryRemove(correlationId, out var tmp);                        
+                        callbackMapper.TryRemove(correlationId, out var tmp);
                         await Publisher.SendAsync(correlationId, new BaseMessageContext() { Context = "Canceled by timeout" }, exchangeName: "amq.fanout", correlationId: correlationId);
                     });
                 CancellationTokenRegistration userToken = ct.Register(
@@ -175,7 +173,7 @@ namespace RabbitMQ.Communication.Client
                         callbackMapper.TryRemove(correlationId, out var tmp1);
                         await Publisher.SendAsync(correlationId, new BaseMessageContext() { Context = "Canceled by user" }, exchangeName: "amq.fanout", correlationId: correlationId);
                     });
-                
+
                 Publisher.ReplyTo replyTo = new Publisher.ReplyTo()
                 {
                     ExchangeName = Subscriber.ExchangeName,
@@ -197,7 +195,7 @@ namespace RabbitMQ.Communication.Client
             catch (Exception ex)
             {
                 Logger?.LogError(ex, "RpcPublisher.SendAsync catch exception with correlationId:{correlationId}", correlationId);
-                if (callbackMapper.TryRemove(correlationId, out var tmp))                
+                if (callbackMapper.TryRemove(correlationId, out var tmp))
                     tmp.SetException(ex);
                 throw ex;
             }
@@ -209,7 +207,7 @@ namespace RabbitMQ.Communication.Client
             if (e.ReplyCode == 312)
             {
                 callbackMapper.TryRemove(e.BasicProperties.CorrelationId, out TaskCompletionSource<BaseResponseMessageContext> tcsMess);
-                tcsMess?.SetException(new MissingMethodException($"Route not found. ReplyCodeCode: {e.ReplyCode}; ReplyMessage: {e.ReplyText}"));                
+                tcsMess?.SetException(new MissingMethodException($"Route not found. ReplyCodeCode: {e.ReplyCode}; ReplyMessage: {e.ReplyText}"));
             }
 
         }

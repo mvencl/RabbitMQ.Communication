@@ -1,14 +1,8 @@
 ﻿using Microsoft.Extensions.Logging;
 using RabbitMQ.Client;
-using RabbitMQ.Client.Events;
-using RabbitMQ.Communication.Context;
 using RabbitMQ.Communication.Contracts;
 using RabbitMQ.Communication.Extension;
 using System;
-using System.Collections.Concurrent;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -22,7 +16,7 @@ namespace RabbitMQ.Communication.Client
         protected virtual void Dispose(bool disposing)
         {
             if (!disposedValue)
-            {                
+            {
                 if (disposing)
                 {
                     // TODO: dispose managed state (managed objects)

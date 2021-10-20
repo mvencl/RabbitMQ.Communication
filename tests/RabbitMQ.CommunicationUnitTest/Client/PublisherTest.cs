@@ -3,11 +3,7 @@ using RabbitMQ.Client.Events;
 using RabbitMQ.Communication.Context;
 using RabbitMQ.Communication.Contracts;
 using RabbitMQ.Communication.Extension;
-using System;
 using System.Collections.Concurrent;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
 using System.Threading.Tasks;
 using Xunit;
 
@@ -15,7 +11,7 @@ namespace RabbitMQ.Communication.Tests.Client
 {
     public class PublisherTest
     {
-        private readonly string _rabbitHostName = "localhost";  
+        private readonly string _rabbitHostName = "localhost";
         private readonly string _userName = "guest";
         private readonly string _password = "guest";
 
@@ -66,7 +62,7 @@ namespace RabbitMQ.Communication.Tests.Client
         /// <summary>
         /// Listen on direct but deserialize to diffrent class with same property - simulate 2 independent services
         /// </summary>
-        [Fact]        
+        [Fact]
         public async Task PublishDirectDifferentClassAsync()
         {
             string methodname = "PublisherTest.PublishDirectDifferentClassAsync";

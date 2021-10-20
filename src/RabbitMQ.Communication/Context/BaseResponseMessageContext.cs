@@ -9,7 +9,7 @@ namespace RabbitMQ.Communication.Context
 
         [JsonProperty(TypeNameHandling = TypeNameHandling.All)]
         public Exception Exception { get; set; } = null;
-               
+
 
     }
 }

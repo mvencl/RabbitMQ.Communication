@@ -5,9 +5,6 @@ using RabbitMQ.Communication.Contracts;
 using RabbitMQ.Communication.Extension;
 using System;
 using System.Collections.Concurrent;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using Xunit;
@@ -22,7 +19,7 @@ namespace RabbitMQ.Communication.Tests.Client
 
         private IModel CreateChannel()
         {
-            return new RabbitMQ.Client.ConnectionFactory() { HostName = _rabbitHostName, UserName = _userName, Password = _password}.CreateConnection().CreateModel();
+            return new RabbitMQ.Client.ConnectionFactory() { HostName = _rabbitHostName, UserName = _userName, Password = _password }.CreateConnection().CreateModel();
         }
 
         [Fact]
@@ -34,7 +31,7 @@ namespace RabbitMQ.Communication.Tests.Client
 
             IModel channel = CreateChannel();
             IBasicProperties props = channel.CreateBasicProperties();
-            props.CorrelationId = RabbitMQExtension.GetCorrelationId();            
+            props.CorrelationId = RabbitMQExtension.GetCorrelationId();
 
             BlockingCollection<string> respQueue = new BlockingCollection<string>();
 
@@ -52,7 +49,7 @@ namespace RabbitMQ.Communication.Tests.Client
         /// <summary>
         /// Listen on direct but deserialize to diffrent class with same property - simulate 2 independent services
         /// </summary>
-        [Fact]        
+        [Fact]
         public void ListenDirectDifferentClass()
         {
             string methodname = "SubscriberTest.ListenDirectDifferentClass";
