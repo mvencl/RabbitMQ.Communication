@@ -95,15 +95,16 @@ namespace RabbitMQ.Communication.Client
                 {
                     CancellationTokenSource cts = new CancellationTokenSource();
                     CancellationTokenSource.Add(ea.BasicProperties.CorrelationId, cts);
-
-                    await consumerFunction(RabbitMQExtension.DeserializeObject<T>(ea.Body.Span.ToArray()), ea, cts.Token);
-
-                    Channel.BasicAck(deliveryTag: ea.DeliveryTag, multiple: false);
+                    await consumerFunction(RabbitMQExtension.DeserializeObject<T>(ea.Body.Span.ToArray()), ea, cts.Token);                    
                 }
                 catch (Exception ex)
                 {
                     Logger?.LogError(ex, "Subscriber.Received ended with exception correlationId:{correlationId}", ea.BasicProperties.CorrelationId);
                     throw ex;
+                }
+                finally
+                {
+                    Channel.BasicAck(deliveryTag: ea.DeliveryTag, multiple: false);
                 }
 
             };

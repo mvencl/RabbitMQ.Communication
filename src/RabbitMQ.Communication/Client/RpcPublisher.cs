@@ -109,7 +109,6 @@ namespace RabbitMQ.Communication.Client
                         tcs.SetException(message.Exception);
                         Logger?.LogError(message.Exception, "RpcPublisher.ConsumerFunction Message with exception was received. correlationId: {correlationId}", ea.BasicProperties.CorrelationId);
                     }
-
                     else
                     {
                         tcs.SetResult(message);
@@ -126,7 +125,8 @@ namespace RabbitMQ.Communication.Client
             catch (Exception ex)
             {
                 Logger?.LogError(ex, "RpcPublisher.ConsumerFunction ended with error for correlationId:{correlationId}", ea.BasicProperties.CorrelationId);
-                throw ex;
+                if (ex.GetType() != message.Exception.GetType())
+                    throw ex;
             }
 
         }
