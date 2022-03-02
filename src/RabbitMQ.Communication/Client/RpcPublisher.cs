@@ -161,16 +161,16 @@ namespace RabbitMQ.Communication.Client
                     async () =>
                     {
                         Logger?.LogWarning("RpcPublisher.SendAsync Request was canceled by timeout. CorrelationId:{correlationId}", correlationId);
-                        tcs.SetCanceled();
-                        callbackMapper.TryRemove(correlationId, out var tmp);
+                        if (callbackMapper.TryRemove(correlationId, out var tmp))
+                            tmp.SetCanceled();
                         await Publisher.SendAsync(correlationId, new BaseMessageContext() { Context = "Canceled by timeout" }, exchangeName: "amq.fanout", correlationId: correlationId);
                     });
                 CancellationTokenRegistration userToken = ct.Register(
                     async () =>
                     {
                         Logger?.LogWarning("RpcPublisher.SendAsync Request was canceled by user. CorrelationId:{correlationId}", correlationId);
-                        tcs.SetCanceled();
-                        callbackMapper.TryRemove(correlationId, out var tmp1);
+                        if (callbackMapper.TryRemove(correlationId, out var tmp1))
+                            tmp1.SetCanceled();
                         await Publisher.SendAsync(correlationId, new BaseMessageContext() { Context = "Canceled by user" }, exchangeName: "amq.fanout", correlationId: correlationId);
                     });
 
