@@ -9,7 +9,7 @@
     <PackageTags>rabbitmq rpc microservices</PackageTags>
     <PackageProjectUrl>https://github.com/mvencl/RabbitMQ.Communication</PackageProjectUrl>
     <Description>Simple library for communication and RPC communication between services using RabbitMQ as a message queueing.</Description>
-    <Version>1.5.2.1</Version>
+    <Version>1.5.3</Version>
   </PropertyGroup>
 
   <ItemGroup>    
