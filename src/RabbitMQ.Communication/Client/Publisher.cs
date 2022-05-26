@@ -44,6 +44,14 @@ namespace RabbitMQ.Communication.Client
         }
         #endregion Dispose
 
+
+        //uložení zpráv na disk --- durable musí být všude 
+        //Queue alesepon na 2 nodech
+        //    Federaion na gateway rabbitmq
+        // Cancalation Queue přehodit na streaming stačí potom jen jedna queue
+
+
+
         internal IModel Channel { get; }
         private bool DisposeChannel { get; } = false;
         internal ILogger Logger { get; }

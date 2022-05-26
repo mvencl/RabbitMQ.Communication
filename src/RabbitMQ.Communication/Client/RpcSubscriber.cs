@@ -4,6 +4,7 @@ using RabbitMQ.Client.Events;
 using RabbitMQ.Communication.Context;
 using RabbitMQ.Communication.Extension;
 using System;
+using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -54,11 +55,24 @@ namespace RabbitMQ.Communication.Client
         private bool DisposeChannel { get; } = false;
         private ILogger Logger { get; }
 
+
+
+        public RpcSubscriber(IConnection connection, string routingKey, Func<T, BasicDeliverEventArgs, CancellationToken, Task<string>> consumerFunction, string subscriberExchangeName = "amq.topic", ushort? prefetchCount = null, ILogger logger = null)
+            : this(connection, new List<string>() { routingKey }, consumerFunction, subscriberExchangeName, prefetchCount, logger)
+        {
+        }
+
+        public RpcSubscriber(IModel channel, string routingKey, Func<T, BasicDeliverEventArgs, CancellationToken, Task<string>> consumerFunction, string subscriberExchangeName = "amq.topic", ushort? prefetchCount = null, ILogger logger = null)
+            : this(channel, new List<string>() { routingKey }, consumerFunction, subscriberExchangeName, prefetchCount, logger)
+        {
+        }
+
         /// <summary>
         /// Constructor
         /// </summary>
         /// <param name="connection">Connection</param>
-        public RpcSubscriber(IConnection connection, string routingKey, Func<T, BasicDeliverEventArgs, CancellationToken, Task<string>> consumerFunction, string subscriberExchangeName = "amq.topic", ushort? prefetchCount = null, ILogger logger = null) : this(connection.CreateModel(), routingKey, consumerFunction, subscriberExchangeName, prefetchCount, logger)
+        public RpcSubscriber(IConnection connection, List<string> routingKeys, Func<T, BasicDeliverEventArgs, CancellationToken, Task<string>> consumerFunction, string subscriberExchangeName = "amq.topic", ushort? prefetchCount = null, ILogger logger = null) 
+            : this(connection.CreateModel(), routingKeys, consumerFunction, subscriberExchangeName, prefetchCount, logger)
         {
             // Channel is created in this class please dispose this channel
             DisposeChannel = true;
@@ -68,12 +82,12 @@ namespace RabbitMQ.Communication.Client
         /// Constructor
         /// </summary>
         /// <param name="channel">Channel</param>
-        public RpcSubscriber(IModel channel, string routingKey, Func<T, BasicDeliverEventArgs, CancellationToken, Task<string>> consumerFunction, string subscriberExchangeName = "amq.topic", ushort? prefetchCount = null, ILogger logger = null)
+        public RpcSubscriber(IModel channel, List<string> routingKeys, Func<T, BasicDeliverEventArgs, CancellationToken, Task<string>> consumerFunction, string subscriberExchangeName = "amq.topic", ushort? prefetchCount = null, ILogger logger = null)
         {
             Channel = channel;
             Logger = logger;
             Publisher = new Publisher(channel);
-            Subscriber = new Subscriber<T>(channel, routingKey, SubscriberFunction, subscriberExchangeName ?? RabbitMQExtension.GetDefaultSubscriberExchangeName, prefetchCount);
+            Subscriber = new Subscriber<T>(channel, routingKeys, SubscriberFunction, subscriberExchangeName ?? RabbitMQExtension.GetDefaultSubscriberExchangeName, prefetchCount);
             ConsumerFunction = consumerFunction;
         }
 

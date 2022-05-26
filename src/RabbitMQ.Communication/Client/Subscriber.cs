@@ -5,6 +5,7 @@ using RabbitMQ.Communication.Contracts;
 using RabbitMQ.Communication.Extension;
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -48,9 +49,15 @@ namespace RabbitMQ.Communication.Client
         #endregion Dispose
 
         /// <summary>
-        /// Routing key on whitch will listening
+        /// Routing keys on whitch will listening
         /// </summary>
-        public string RoutingKey { get; }
+        public List<string> RoutingKeys { get; }
+
+        /// <summary>
+        /// The main routing on whitch will listening. The longest one.
+        /// </summary>
+        public string RoutingKey { get { return RoutingKeys.OrderByDescending(r => r.Length).FirstOrDefault(); } }
+        
 
         /// <summary>
         /// Exchange name on which will listening (queue will be binding)
@@ -64,14 +71,26 @@ namespace RabbitMQ.Communication.Client
         internal ILogger Logger { get; }
 
         public Subscriber(IConnection connection, string routingKey, Func<T, BasicDeliverEventArgs, CancellationToken, Task> consumerFunction, string subscriberExchangeName = "amq.topic", ushort? prefetchCount = null, bool allowCancellation = true, ILogger logger = null)
-            : this(connection.CreateModel(), routingKey, consumerFunction, subscriberExchangeName, prefetchCount, allowCancellation, logger)
+            : this(connection, new List<string>() { routingKey }, consumerFunction, subscriberExchangeName, prefetchCount, allowCancellation, logger)
+        {
+        }
+
+
+        public Subscriber(IModel channel, string routingKey, Func<T, BasicDeliverEventArgs, CancellationToken, Task> consumerFunction, string subscriberExchangeName = "amq.topic", ushort? prefetchCount = null, bool allowCancellation = true, ILogger logger = null)
+            : this(channel, new List<string>() { routingKey }, consumerFunction, subscriberExchangeName, prefetchCount, allowCancellation, logger)
+        {
+        }
+
+
+        public Subscriber(IConnection connection, List<string> routingKeys, Func<T, BasicDeliverEventArgs, CancellationToken, Task> consumerFunction, string subscriberExchangeName = "amq.topic", ushort? prefetchCount = null, bool allowCancellation = true, ILogger logger = null)
+            : this(connection.CreateModel(), routingKeys, consumerFunction, subscriberExchangeName, prefetchCount, allowCancellation, logger)
         {
             DisposeChannel = true;
         }
-        public Subscriber(IModel channel, string routingKey, Func<T, BasicDeliverEventArgs, CancellationToken, Task> consumerFunction, string subscriberExchangeName = "amq.topic", ushort? prefetchCount = null, bool allowCancellation = true, ILogger logger = null)
+        public Subscriber(IModel channel, List<string> routingKeys, Func<T, BasicDeliverEventArgs, CancellationToken, Task> consumerFunction, string subscriberExchangeName = "amq.topic", ushort? prefetchCount = null, bool allowCancellation = true, ILogger logger = null)
         {
             ExchangeName = subscriberExchangeName;
-            RoutingKey = RabbitMQExtension.CleanRoutingKey(routingKey);
+            RoutingKeys = routingKeys.Select(rk => RabbitMQExtension.CleanRoutingKey(rk)).ToList();
             string queueName = RoutingKey;
             Channel = channel;
 
@@ -82,7 +101,8 @@ namespace RabbitMQ.Communication.Client
                 CancelQueue(queueName);
 
             Channel.CreateQueue(queueName);
-            Channel.QueueBind(queueName, ExchangeName, RoutingKey);
+            foreach(string route in RoutingKeys)
+                Channel.QueueBind(queueName, ExchangeName, route);
 
             EventingBasicConsumer consumer = new EventingBasicConsumer(Channel);
 
